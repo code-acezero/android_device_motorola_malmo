@@ -15,13 +15,6 @@ jobs:
     - name: Clean Disk Space
       uses: rokibhasansagar/slimhub_actions@main
 
-    - name: Set up Swap Space (Prevents RAM Crashes)
-      run: |
-        sudo fallocate -l 4G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        sudo swapon --show
 
     - name: Install Dependencies
       run: |
