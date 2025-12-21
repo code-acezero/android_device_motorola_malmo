@@ -47,7 +47,7 @@ jobs:
         export PATH=~/bin:$PATH
         cd workspace
         . build/envsetup.sh
-        lunch twrp_malmo-eng
+        lunch omni_malmo-eng
         mka vendorbootimage
 
     - name: Upload Artifact
