@@ -10,7 +10,7 @@ jobs:
 
     steps:
     - name: Checkout Source
-      uses: actions/checkout@v2
+      uses: actions/checkout@v4
 
     - name: Clean Disk Space
       uses: rokibhasansagar/slimhub_actions@main
@@ -51,7 +51,7 @@ jobs:
         mka vendorbootimage
 
     - name: Upload Artifact
-      uses: actions/upload-artifact@v2
+      uses: actions/upload-artifact@v4
       with:
         name: TWRP-Recovery-G85
         path: workspace/out/target/product/malmo/vendor_boot.img
