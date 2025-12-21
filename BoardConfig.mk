@@ -44,6 +44,15 @@ ifeq ($(TARGET_FORCE_PREBUILT_KERNEL),true)
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
 endif
 
+# ----------------------------------------
+# FIX: ADD THESE LINES FOR THE DTB ERROR
+# ----------------------------------------
+BOARD_INCLUDE_DTB_IN_BOOTIMG := true
+BOARD_PREBUILT_DTBIMAGE_DIR := $(DEVICE_PATH)/prebuilt
+BOARD_DTB_OFFSET := 0
+# ----------------------------------------
+
+
 # Partitions
 # FIX: Defined vendor_boot size. This is required for GKI devices.
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 100663296
