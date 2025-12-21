@@ -28,7 +28,7 @@ jobs:
         chmod a+x ~/bin/repo
         export PATH=~/bin:$PATH
 
-    - name: Initialize Repo (TWRP 12.1)
+    - name: Initialize Repo (TWRP 12.1 ---- low space mode)
       run: |
         export PATH=~/bin:$PATH
         mkdir workspace
