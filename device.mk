@@ -6,7 +6,8 @@
 #
 
 LOCAL_PATH := device/motorola/malmo
-# A/B
+
+# A/B Configuration
 AB_OTA_POSTINSTALL_CONFIG += \
     RUN_POSTINSTALL_system=true \
     POSTINSTALL_PATH_system=system/bin/otapreopt_script \
@@ -14,18 +15,24 @@ AB_OTA_POSTINSTALL_CONFIG += \
     POSTINSTALL_OPTIONAL_system=true
 
 # Boot control HAL
+# FIX: Use generic Android boot control, not the missing 'blair' one.
 PRODUCT_PACKAGES += \
     android.hardware.boot@1.0-impl \
-    android.hardware.boot@1.0-service
+    android.hardware.boot@1.0-service \
+    android.hardware.boot@1.0-impl.recovery
 
-PRODUCT_PACKAGES += \
-    bootctrl.blair
+# FIX: Removed 'bootctrl.blair'. We don't have the source code for it.
+# PRODUCT_PACKAGES += \
+#     bootctrl.blair
 
-PRODUCT_STATIC_BOOT_CONTROL_HAL := \
-    bootctrl.blair \
-    libgptutils \
-    libz \
-    libcutils
+# FIX: Point static boot control to the generic library (libbootcontrol) or remove.
+# For TWRP 12.1, usually 'bootctrl.hollywood' or generic 'bootctrl' is used for Qualcomm.
+# Let's try removing the static definition to let TWRP auto-select.
+# PRODUCT_STATIC_BOOT_CONTROL_HAL := \
+#     bootctrl.blair \
+#     libgptutils \
+#     libz \
+#     libcutils
 
 PRODUCT_PACKAGES += \
     otapreopt_script \
