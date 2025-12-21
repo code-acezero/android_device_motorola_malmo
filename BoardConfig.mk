@@ -19,8 +19,6 @@ TARGET_CPU_VARIANT := generic
 TARGET_CPU_VARIANT_RUNTIME := kryo300
 
 # Platform
-# FIX: 'blair' is the Moto codename, but the SoC platform is 'holi' (Snapdragon 695/6s Gen 3).
-# We use 'holi' to ensure TWRP finds the right dependencies.
 TARGET_BOARD_PLATFORM := holi
 
 # Bootloader
@@ -31,35 +29,42 @@ TARGET_NO_BOOTLOADER := true
 TARGET_SCREEN_DENSITY := 400
 
 # Kernel - CRITICAL FOR ANDROID 14
-# FIX: Header version 4 means this device uses Generic Kernel Image (GKI).
-# The recovery ramdisk lives in vendor_boot, not boot.
+# FIX: Specific video arguments to prevent black screen
+BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig
+
+# FIX: Header version 4 (GKI)
 BOARD_BOOT_HEADER_VERSION := 4
 BOARD_KERNEL_PAGESIZE := 4096
-BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
+
+# FIX: Manual Offsets (Safer than letting build system guess)
+BOARD_KERNEL_BASE          := 0x00000000
+BOARD_KERNEL_OFFSET        := 0x00008000
+BOARD_RAMDISK_OFFSET       := 0x01000000
+BOARD_KERNEL_SECOND_OFFSET := 0x00000000
+BOARD_KERNEL_TAGS_OFFSET   := 0x00000100
+BOARD_DTB_OFFSET           := 0x01f00000
+
+TARGET_KERNEL_ARCH := arm64
+TARGET_KERNEL_HEADER_ARCH := arm64
 
 # Kernel - Prebuilt
-# FIX: Ensure you actually have a file named 'Image' or 'Image.gz' in your /prebuilt/kernel folder!
-TARGET_FORCE_PREBUILT_KERNEL := true
-ifeq ($(TARGET_FORCE_PREBUILT_KERNEL),true)
+# FIX: Points to 'kernel' and 'dtb' (Exact names, NO EXTENSIONS)
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
-endif
+TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
 
-# ----------------------------------------
-# FIX: ADD THESE LINES FOR THE DTB ERROR
-# ----------------------------------------
-BOARD_INCLUDE_DTB_IN_BOOTIMG := true
-BOARD_PREBUILT_DTBIMAGE_DIR := $(DEVICE_PATH)/prebuilt
-BOARD_DTB_OFFSET := 0
-# ----------------------------------------
-
+BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
+BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
+BOARD_MKBOOTIMG_ARGS += --base $(BOARD_KERNEL_BASE)
+BOARD_MKBOOTIMG_ARGS += --kernel_offset $(BOARD_KERNEL_OFFSET)
+BOARD_MKBOOTIMG_ARGS += --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
+BOARD_MKBOOTIMG_ARGS += --second_offset $(BOARD_KERNEL_SECOND_OFFSET)
+BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
+BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
+BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
 
 # Partitions
-# FIX: Defined vendor_boot size. This is required for GKI devices.
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 100663296
 BOARD_BOOTIMAGE_PARTITION_SIZE := 134217728
-
-# FIX: Removed RECOVERYIMAGE_PARTITION_SIZE because this device does not have a dedicated recovery partition.
-# BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728 
 
 BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
@@ -75,7 +80,6 @@ BOARD_MOTOROLA_DYNAMIC_PARTITIONS_SIZE := 9122611200
 
 # A/B Configuration
 AB_OTA_UPDATER := true
-# FIX: Added vendor_boot and dtbo to the A/B list. Essential for updates.
 AB_OTA_PARTITIONS += \
     boot \
     dtbo \
@@ -88,10 +92,7 @@ AB_OTA_PARTITIONS += \
     vbmeta_system
 
 # Recovery Configuration
-# FIX: This is the most important change.
-# For Header V4, we do NOT use RECOVERY_AS_BOOT. We move resources to vendor_boot.
 BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := true
-# BOARD_USES_RECOVERY_AS_BOOT := true  <-- DEPRECATED for GKI
 
 TARGET_RECOVERY_PIXEL_FORMAT := RGBX_8888
 TARGET_USERIMAGES_USE_EXT4 := true
@@ -105,9 +106,9 @@ PLATFORM_VERSION := 14
 # AVB (Verified Boot)
 BOARD_AVB_ENABLE := true
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
-BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA4096
-BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
-BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
+BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA4096
+BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := 1
+BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX_LOCATION := 1
 
 # TWRP Specifics
 TW_THEME := portrait_hdpi
@@ -118,8 +119,4 @@ TW_USE_TOOLBOX := true
 TW_INCLUDE_REPACKTOOLS := true
 TW_INCLUDE_RESETPROP := true
 TW_INCLUDE_LIBRESETPROP := true
-
-# Encryption - TEMPORARILY DISABLED
-# Fix: Disable encryption for the first build to ensure it boots. 
-# Once it boots, we can try to enable decryption later.
 TW_INCLUDE_CRYPTO := false
