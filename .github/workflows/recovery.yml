@@ -15,6 +15,14 @@ jobs:
     - name: Clean Disk Space
       uses: rokibhasansagar/slimhub_actions@main
 
+    - name: Set up Swap Space (Prevents RAM Crashes)
+      run: |
+        sudo fallocate -l 12G /swapfile
+        sudo chmod 600 /swapfile
+        sudo mkswap /swapfile
+        sudo swapon /swapfile
+        sudo swapon --show
+
     - name: Install Dependencies
       run: |
         sudo apt-get update
@@ -37,9 +45,7 @@ jobs:
 
     - name: Clone Your Device Tree
       run: |
-        # FIX: Enter the workspace folder first!
         cd workspace
-        # Now clone into device/motorola/malmo
         git clone https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
 
     - name: Build Recovery
@@ -48,7 +54,8 @@ jobs:
         cd workspace
         . build/envsetup.sh
         lunch omni_malmo-eng
-        mka vendorbootimage
+        # Using -j2 WITH swap space ensures success
+        make -j2 vendorbootimage
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
