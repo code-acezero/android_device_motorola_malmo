@@ -32,7 +32,7 @@ TARGET_BOOTLOADER_BOARD_NAME := malmo
 TARGET_NO_BOOTLOADER := true
 TARGET_USES_UEFI := true
 
-# ⚡ A/B SLOT SUPPORT (Essential for G85) ⚡
+# ⚡ A/B SLOT SUPPORT
 AB_OTA_UPDATER := true
 
 # ---------------------------------------------------------
@@ -44,10 +44,8 @@ BOARD_BOOT_HEADER_VERSION := 4
 BOARD_KERNEL_PAGESIZE := 4096
 BOARD_KERNEL_IMAGE_NAME := kernel
 
-# ⚠️ FILE CHECK: Ensure 'device/motorola/malmo/prebuilt/' has a file named EXACTLY 'kernel'
+# ⚠️ FILE CHECK: Ensure 'kernel' and 'dtb' exist in prebuilt folder!
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
-
-# ⚠️ FILE CHECK: Ensure 'device/motorola/malmo/prebuilt/' has a file named EXACTLY 'dtb'
 TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
 
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
@@ -80,7 +78,7 @@ BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 TARGET_COPY_OUT_VENDOR := vendor
 
-# ⚡ DEDICATED RECOVERY FLAGS ⚡
+# ⚡ DEDICATED RECOVERY FLAGS
 BOARD_USES_RECOVERY_AS_BOOT := false
 TARGET_NO_RECOVERY := false
 
@@ -98,11 +96,14 @@ BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
 BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := 1
 
-# ⚡ FIX FOR BUILD ERROR: RECOVERY SIGNING KEYS ⚡
-# Uses standard test keys since bootloader is unlocked
+# RECOVERY SIGNING (The Complete Set)
 BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
 BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
+BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
+
+# SAFETY NET: Ensures the footer fits inside the 128MB partition
+BOARD_AVB_RECOVERY_ADD_HASH_FOOTER_ARGS += --max_image_size $(BOARD_RECOVERYIMAGE_PARTITION_SIZE)
 
 VENDOR_SECURITY_PATCH := 2025-12-31
 PLATFORM_VERSION := 14
