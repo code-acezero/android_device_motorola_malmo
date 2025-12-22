@@ -15,15 +15,6 @@ jobs:
     - name: Clean Disk Space
       uses: rokibhasansagar/slimhub_actions@main
 
-    - name: Set up Swap Space (4GB)
-      run: |
-        # We need this to prevent RAM crashes, but keep it small (4GB) to save disk
-        sudo fallocate -l 4G /swapfile
-        sudo chmod 600 /swapfile
-        sudo mkswap /swapfile
-        sudo swapon /swapfile
-        sudo swapon --show
-
     - name: Install Dependencies
       run: |
         sudo apt-get update
@@ -41,30 +32,44 @@ jobs:
         export PATH=~/bin:$PATH
         mkdir workspace
         cd workspace
-        # using depth=1 to save 10GB+ of storage
+        # Using depth=1 is critical since we removed swap (saves disk space)
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
         repo sync -c -j$(nproc --all)
 
-    - name: Clone Your Device Tree
+    - name: Clone Device Tree (Robust Mode)
       run: |
         cd workspace
+        # FIX: Manually create the parent folders so git clone doesn't fail
+        mkdir -p device/motorola
         git clone https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
 
-    - name: 🔧 FIX - Force Rename DTB (The Nuclear Option)
+    - name: 🔧 FIX - Force Rename DTB (Smart Find)
       run: |
-        echo "Looking for DTB file..."
-        cd workspace/device/motorola/malmo/prebuilt
+        cd workspace
+        echo "Searching for DTB file..."
         
-        # Find whatever file is there (dtb, dtb.img, or dtb.dtb)
-        FILE=$(ls dtb* | head -n 1)
-        echo "Found file: $FILE"
+        # Find the file 'dtb' anywhere inside device/motorola
+        DTB_PATH=$(find device/motorola -name "dtb" -type f | head -n 1)
         
-        # Rename it to 'dtb.img' so we are 100% sure of the name
-        mv "$FILE" dtb.img
-        echo "Renamed $FILE to dtb.img"
+        if [ -z "$DTB_PATH" ]; then
+          echo "Warning: File 'dtb' not found. Checking if it is already named 'dtb.img'..."
+          DTB_PATH=$(find device/motorola -name "dtb.img" -type f | head -n 1)
+        fi
         
-        # Verify it exists now
-        ls -la dtb.img
+        if [ -z "$DTB_PATH" ]; then
+          echo "CRITICAL ERROR: Could not find any DTB file! Listing directory:"
+          ls -R device/motorola
+          exit 1
+        fi
+
+        echo "Found file at: $DTB_PATH"
+        
+        # Get the directory of the file
+        DIR_NAME=$(dirname "$DTB_PATH")
+        
+        # Rename it to dtb.img
+        mv "$DTB_PATH" "$DIR_NAME/dtb.img"
+        echo "Renamed file to: $DIR_NAME/dtb.img"
 
     - name: Build Recovery
       run: |
@@ -72,8 +77,8 @@ jobs:
         cd workspace
         . build/envsetup.sh
         lunch omni_malmo-eng
-        # Using -j2 WITH swap space ensures success
-        make -j2 vendorbootimage
+        # CRITICAL: Do NOT remove -j2. Without swap, higher values will crash the RAM.
+        mka vendorbootimage
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
