@@ -47,8 +47,8 @@ jobs:
         cd workspace
         . build/envsetup.sh
         
-        # Lunch command matching your twrp_malmo.mk
-        lunch twrp_malmo-eng
+        # Lunch command matching your omni_malmo.mk
+        lunch omni_malmo-eng
         
         # Build Dedicated Recovery
         mka recoveryimage
