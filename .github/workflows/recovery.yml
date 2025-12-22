@@ -46,7 +46,7 @@ jobs:
         export PATH=~/bin:$PATH
         cd workspace
         . build/envsetup.sh
-        lunch omni_malmo-eng
+        lunch twrp_malmo-eng
         
         # CHANGED: Back to Vendor Boot (The only method that booted)
         mka vendorbootimage
