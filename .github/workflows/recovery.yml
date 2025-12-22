@@ -32,44 +32,48 @@ jobs:
         export PATH=~/bin:$PATH
         mkdir workspace
         cd workspace
-        # Using depth=1 is critical since we removed swap (saves disk space)
+        # using depth=1 to save space
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
         repo sync -c -j$(nproc --all)
 
-    - name: Clone Device Tree (Robust Mode)
+    - name: Clone Device Tree (With Structure Fix)
       run: |
         cd workspace
-        # FIX: Manually create the parent folders so git clone doesn't fail
-        mkdir -p device/motorola
-        git clone https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
+        # 1. Create the target directory
+        mkdir -p device/motorola/malmo
+        
+        # 2. Clone into a temporary folder first
+        git clone https://github.com/code-acezero/android_device_motorola_malmo temp_repo
+        
+        # 3. Check for the "Russian Doll" nesting
+        if [ -d "temp_repo/device/motorola/malmo" ]; then
+            echo "⚠️ Nested structure detected! Moving inner files up..."
+            mv temp_repo/device/motorola/malmo/* device/motorola/malmo/
+        else
+            echo "Standard structure detected. Moving files directly..."
+            mv temp_repo/* device/motorola/malmo/
+        fi
+        
+        # 4. Clean up temp folder
+        rm -rf temp_repo
+        echo "✅ Device tree placed correctly."
 
-    - name: 🔧 FIX - Force Rename DTB (Smart Find)
+    - name: 🔧 FIX - Check DTB Name
       run: |
-        cd workspace
-        echo "Searching for DTB file..."
+        cd workspace/device/motorola/malmo/prebuilt
+        echo "Checking contents of prebuilt folder..."
+        ls -la
         
-        # Find the file 'dtb' anywhere inside device/motorola
-        DTB_PATH=$(find device/motorola -name "dtb" -type f | head -n 1)
-        
-        if [ -z "$DTB_PATH" ]; then
-          echo "Warning: File 'dtb' not found. Checking if it is already named 'dtb.img'..."
-          DTB_PATH=$(find device/motorola -name "dtb.img" -type f | head -n 1)
+        # Rename dtb to dtb.img only if it isn't already named that
+        if [ -f "dtb" ]; then
+            mv dtb dtb.img
+            echo "Renamed 'dtb' to 'dtb.img'"
+        elif [ -f "dtb.img" ]; then
+            echo "File is already named 'dtb.img'. Perfect."
+        else
+            echo "❌ ERROR: No dtb file found! Something went wrong with the move."
+            exit 1
         fi
-        
-        if [ -z "$DTB_PATH" ]; then
-          echo "CRITICAL ERROR: Could not find any DTB file! Listing directory:"
-          ls -R device/motorola
-          exit 1
-        fi
-
-        echo "Found file at: $DTB_PATH"
-        
-        # Get the directory of the file
-        DIR_NAME=$(dirname "$DTB_PATH")
-        
-        # Rename it to dtb.img
-        mv "$DTB_PATH" "$DIR_NAME/dtb.img"
-        echo "Renamed file to: $DIR_NAME/dtb.img"
 
     - name: Build Recovery
       run: |
@@ -77,8 +81,8 @@ jobs:
         cd workspace
         . build/envsetup.sh
         lunch omni_malmo-eng
-        # CRITICAL: Do NOT remove -j2. Without swap, higher values will crash the RAM.
-        mka vendorbootimage
+        # Removed swap as requested, keeping -j2 for safety
+        make -j2 vendorbootimage
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
