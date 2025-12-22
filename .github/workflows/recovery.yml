@@ -16,11 +16,7 @@ jobs:
     - name: Clean Disk Space
       uses: rokibhasansagar/slimhub_actions@main
 
-     
-- name: DEBUG - Show Me The Files
-      run: |
-        echo "Listing contents of prebuilt folder:"
-        ls -la workspace/device/motorola/malmo/prebuilt/
+  
 
         
     - name: Install Dependencies
