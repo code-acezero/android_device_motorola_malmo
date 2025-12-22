@@ -46,14 +46,16 @@ jobs:
         export PATH=~/bin:$PATH
         cd workspace
         . build/envsetup.sh
-        lunch omni_malmo-eng
         
-        # CHANGED: Back to Vendor Boot (The only method that booted)
-        mka vendorbootimage
+        # Lunch command matching your twrp_malmo.mk
+        lunch twrp_malmo-eng
+        
+        # Build Dedicated Recovery
+        mka recoveryimage
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
         name: TWRP-Recovery-G85-5G
-        # CHANGED: Uploading vendor_boot.img
-        path: workspace/out/target/product/malmo/vendor_boot.img
+        # Uploading the recovery.img
+        path: workspace/out/target/product/malmo/recovery.img
