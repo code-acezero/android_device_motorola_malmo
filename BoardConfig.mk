@@ -34,6 +34,18 @@ TARGET_USES_UEFI := true
 
 # ⚡ A/B SLOT SUPPORT
 AB_OTA_UPDATER := true
+# ⚡ A/B SLOT SUPPORT
+AB_OTA_UPDATER := true
+AB_OTA_PARTITIONS += \
+    boot \
+    dtbo \
+    recovery \
+    system \
+    system_ext \
+    product \
+    vendor \
+    vbmeta \
+    vbmeta_system
 
 # ---------------------------------------------------------
 # KERNEL CONFIG (Standalone Recovery Mode)
