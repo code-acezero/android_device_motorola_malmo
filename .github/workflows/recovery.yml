@@ -32,48 +32,14 @@ jobs:
         export PATH=~/bin:$PATH
         mkdir workspace
         cd workspace
-        # using depth=1 to save space
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
         repo sync -c -j$(nproc --all)
 
-    - name: Clone Device Tree (With Structure Fix)
+    - name: Clone Device Tree (Standard)
       run: |
         cd workspace
-        # 1. Create the target directory
-        mkdir -p device/motorola/malmo
-        
-        # 2. Clone into a temporary folder first
-        git clone https://github.com/code-acezero/android_device_motorola_malmo temp_repo
-        
-        # 3. Check for the "Russian Doll" nesting
-        if [ -d "temp_repo/device/motorola/malmo" ]; then
-            echo "⚠️ Nested structure detected! Moving inner files up..."
-            mv temp_repo/device/motorola/malmo/* device/motorola/malmo/
-        else
-            echo "Standard structure detected. Moving files directly..."
-            mv temp_repo/* device/motorola/malmo/
-        fi
-        
-        # 4. Clean up temp folder
-        rm -rf temp_repo
-        echo "✅ Device tree placed correctly."
-
-    - name: 🔧 FIX - Check DTB Name
-      run: |
-        cd workspace/device/motorola/malmo/prebuilt
-        echo "Checking contents of prebuilt folder..."
-        ls -la
-        
-        # Rename dtb to dtb.img only if it isn't already named that
-        if [ -f "dtb" ]; then
-            mv dtb dtb.img
-            echo "Renamed 'dtb' to 'dtb.img'"
-        elif [ -f "dtb.img" ]; then
-            echo "File is already named 'dtb.img'. Perfect."
-        else
-            echo "❌ ERROR: No dtb file found! Something went wrong with the move."
-            exit 1
-        fi
+        # This will now place your clean files exactly where they belong
+        git clone https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
 
     - name: Build Recovery
       run: |
@@ -81,8 +47,8 @@ jobs:
         cd workspace
         . build/envsetup.sh
         lunch omni_malmo-eng
-        # Removed swap as requested, keeping -j2 for safety
-        make -j2 vendorbootimage
+        # -j2 is safe for the 7GB RAM
+        mka vendorbootimage
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
