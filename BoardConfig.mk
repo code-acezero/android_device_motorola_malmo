@@ -33,25 +33,17 @@ TARGET_NO_BOOTLOADER := true
 TARGET_USES_UEFI := true
 
 # ---------------------------------------------------------
-# KERNEL CONFIG (MATCHING STOCK EXACTLY)
+# KERNEL CONFIG (Standalone Recovery Mode)
 # ---------------------------------------------------------
-# FIX: Restored the video argument because Stock uses it!
+# 1. Use the Stock CMDLINE you verified
 BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig androidboot.fastboot=1 androidboot.selinux=permissive
 
 BOARD_BOOT_HEADER_VERSION := 4
 BOARD_KERNEL_PAGESIZE := 4096
-
-# Offsets
-BOARD_KERNEL_BASE          := 0x00000000
-BOARD_KERNEL_OFFSET        := 0x00008000
-BOARD_RAMDISK_OFFSET       := 0x01000000
-BOARD_KERNEL_SECOND_OFFSET := 0x00000000
-BOARD_KERNEL_TAGS_OFFSET   := 0x00000100
-BOARD_DTB_OFFSET           := 0x01f00000
-
-TARGET_KERNEL_ARCH := arm64
-TARGET_KERNEL_HEADER_ARCH := arm64
 BOARD_KERNEL_IMAGE_NAME := kernel
+
+# 2. Point to the KERNEL extracted from Stock boot.img
+# (Make sure the file is named 'kernel' with no extension in prebuilt folder)
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
 TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
 
@@ -65,15 +57,22 @@ BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
 
-# ---------------------------------------------------------
-# PARTITIONS (CRITICAL FIX FOR 96MB LIMIT)
-# ---------------------------------------------------------
-# Exact size: 96 * 1024 * 1024 = 100663296
-BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 100663296
-BOARD_BOOTIMAGE_PARTITION_SIZE := 134217728
+# Offsets
+BOARD_KERNEL_BASE          := 0x00000000
+BOARD_KERNEL_OFFSET        := 0x00008000
+BOARD_RAMDISK_OFFSET       := 0x01000000
+BOARD_KERNEL_SECOND_OFFSET := 0x00000000
+BOARD_KERNEL_TAGS_OFFSET   := 0x00000100
+BOARD_DTB_OFFSET           := 0x01f00000
 
-# Flash Block Size (Copied from Bangkk)
-BOARD_FLASH_BLOCK_SIZE := 262144
+# ---------------------------------------------------------
+# PARTITIONS (128MB Recovery)
+# ---------------------------------------------------------
+# Recovery is 128MB (Matches your Stock Recovery)
+BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728
+
+# Boot is 96MB (Matches your Stock Boot)
+BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
 
 BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
@@ -81,16 +80,19 @@ BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 TARGET_COPY_OUT_VENDOR := vendor
 
-# ---------------------------------------------------------
-# COMPRESSION (Shrink to fit)
-# ---------------------------------------------------------
-BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := true
-BOARD_RAMDISK_USE_LZ4 := true
-# Use highest compression to fit in 96MB
-# BOARD_RAMDISK_LZ4_ARGUMENTS := -l -9
+# ⚡ KEY FLAGS FOR STANDALONE RECOVERY ⚡
+BOARD_USES_RECOVERY_AS_BOOT := false
+TARGET_NO_RECOVERY := false
+# Removed 'BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT' so TWRP stays in recovery.img
 
 # ---------------------------------------------------------
-# CRYPTO & AVB (Bangkk Logic)
+# COMPRESSION
+# ---------------------------------------------------------
+BOARD_RAMDISK_USE_LZ4 := true
+BOARD_RAMDISK_LZ4_ARGUMENTS := -l -9
+
+# ---------------------------------------------------------
+# CRYPTO & AVB
 # ---------------------------------------------------------
 BOARD_AVB_ENABLE := true
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
@@ -107,7 +109,7 @@ TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
 
 # ---------------------------------------------------------
-# TWRP UI (Minimal to save space)
+# TWRP UI
 # ---------------------------------------------------------
 TW_THEME := portrait_hdpi
 TW_EXTRA_LANGUAGES := false
