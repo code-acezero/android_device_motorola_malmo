@@ -18,25 +18,30 @@ TARGET_CPU_ABI2 :=
 TARGET_CPU_VARIANT := generic
 TARGET_CPU_VARIANT_RUNTIME := kryo300
 
-# Platform
-TARGET_BOARD_PLATFORM := holi
+TARGET_2ND_ARCH := arm
+TARGET_2ND_ARCH_VARIANT := armv8-a
+TARGET_2ND_CPU_ABI := armeabi-v7a
+TARGET_2ND_CPU_ABI2 := armeabi
+TARGET_2ND_CPU_VARIANT := generic
+TARGET_2ND_CPU_VARIANT_RUNTIME := cortex-a75
 
-# Bootloader
+# Platform
+BOARD_USES_QCOM_HARDWARE := true
+TARGET_BOARD_PLATFORM := holi
 TARGET_BOOTLOADER_BOARD_NAME := malmo
 TARGET_NO_BOOTLOADER := true
+TARGET_USES_UEFI := true
 
-# Display
-TARGET_SCREEN_DENSITY := 400
+# ---------------------------------------------------------
+# KERNEL CONFIG (MATCHING STOCK EXACTLY)
+# ---------------------------------------------------------
+# FIX: Restored the video argument because Stock uses it!
+BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig androidboot.fastboot=1 androidboot.selinux=permissive
 
-# Kernel - CRITICAL FOR ANDROID 14
-# FIX: Specific video arguments to prevent black screen
-BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig
-
-# FIX: Header version 4 (GKI)
 BOARD_BOOT_HEADER_VERSION := 4
 BOARD_KERNEL_PAGESIZE := 4096
 
-# FIX: Manual Offsets (Safer than letting build system guess)
+# Offsets
 BOARD_KERNEL_BASE          := 0x00000000
 BOARD_KERNEL_OFFSET        := 0x00008000
 BOARD_RAMDISK_OFFSET       := 0x01000000
@@ -46,9 +51,7 @@ BOARD_DTB_OFFSET           := 0x01f00000
 
 TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_HEADER_ARCH := arm64
-
-# Kernel - Prebuilt
-# FIX: Ensure your file in the repo is named 'dtb.img'
+BOARD_KERNEL_IMAGE_NAME := kernel
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
 TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
 
@@ -63,14 +66,14 @@ BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
 
 # ---------------------------------------------------------
-# FIX: COMPRESSION & SIZE (The Magic Fixes)
+# PARTITIONS (CRITICAL FIX FOR 96MB LIMIT)
 # ---------------------------------------------------------
-# 1. Use LZ4 to match Stock Moto format (Fixes "Bootloader Fallback")
-BOARD_RAMDISK_USE_LZ4 := true
-
-# Partitions
+# Exact size: 96 * 1024 * 1024 = 100663296
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 100663296
 BOARD_BOOTIMAGE_PARTITION_SIZE := 134217728
+
+# Flash Block Size (Copied from Bangkk)
+BOARD_FLASH_BLOCK_SIZE := 262144
 
 BOARD_HAS_LARGE_FILESYSTEM := true
 BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
@@ -78,52 +81,42 @@ BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 TARGET_COPY_OUT_VENDOR := vendor
 
-# Dynamic Partitions
-BOARD_SUPER_PARTITION_SIZE := 9126805504
-BOARD_SUPER_PARTITION_GROUPS := motorola_dynamic_partitions
-BOARD_MOTOROLA_DYNAMIC_PARTITIONS_PARTITION_LIST := system system_ext product vendor
-BOARD_MOTOROLA_DYNAMIC_PARTITIONS_SIZE := 9122611200
-
-# A/B Configuration
-AB_OTA_UPDATER := true
-AB_OTA_PARTITIONS += \
-    boot \
-    dtbo \
-    system \
-    product \
-    vendor \
-    system_ext \
-    vendor_boot \
-    vbmeta \
-    vbmeta_system
-
-# Recovery Configuration
+# ---------------------------------------------------------
+# COMPRESSION (Shrink to fit)
+# ---------------------------------------------------------
 BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := true
+BOARD_RAMDISK_USE_LZ4 := true
+# Use highest compression to fit in 96MB
+# BOARD_RAMDISK_LZ4_ARGUMENTS := -l -9
 
-TARGET_RECOVERY_PIXEL_FORMAT := RGBX_8888
-TARGET_USERIMAGES_USE_EXT4 := true
-TARGET_USERIMAGES_USE_F2FS := true
-
-# Security patch level
-VENDOR_SECURITY_PATCH := 2025-12-31
-PLATFORM_SECURITY_PATCH := 2099-12-31
-PLATFORM_VERSION := 14
-
-# AVB (Verified Boot)
+# ---------------------------------------------------------
+# CRYPTO & AVB (Bangkk Logic)
+# ---------------------------------------------------------
 BOARD_AVB_ENABLE := true
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
 BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := 1
-BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX_LOCATION := 1
 
-# TWRP Specifics
+VENDOR_SECURITY_PATCH := 2025-12-31
+PLATFORM_VERSION := 14
+BOARD_USES_QCOM_FBE_DECRYPTION := true
+BOARD_USES_METADATA_PARTITION := true
+TW_INCLUDE_FBE_METADATA_DECRYPT := true
+TW_USE_FSCRYPT_POLICY := 1
+TW_INCLUDE_CRYPTO := true
+TW_INCLUDE_CRYPTO_FBE := true
+
+# ---------------------------------------------------------
+# TWRP UI (Minimal to save space)
+# ---------------------------------------------------------
 TW_THEME := portrait_hdpi
-# FIX: Disable extra languages to save ~5MB (Prevents Size Error)
 TW_EXTRA_LANGUAGES := false
 TW_SCREEN_BLANK_ON_BOOT := true
 TW_INPUT_BLACKLIST := "hbtp_vm"
-TW_USE_TOOLBOX := true
+TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
 TW_INCLUDE_REPACKTOOLS := true
 TW_INCLUDE_RESETPROP := true
 TW_INCLUDE_LIBRESETPROP := true
-TW_INCLUDE_CRYPTO := false
+TW_EXCLUDE_DEFAULT_USB_INIT := true
+TW_Y_OFFSET := 80
+TW_H_OFFSET := -80
