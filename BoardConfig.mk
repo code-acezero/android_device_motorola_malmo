@@ -48,9 +48,9 @@ TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_HEADER_ARCH := arm64
 
 # Kernel - Prebuilt
-# FIX: Use relative path + .img extension to match standard Android expectations.
+# FIX: Ensure your file in the repo is named 'dtb.img'
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
-TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
+TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
 
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
 BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
@@ -62,6 +62,11 @@ BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
 
+# ---------------------------------------------------------
+# FIX: COMPRESSION & SIZE (The Magic Fixes)
+# ---------------------------------------------------------
+# 1. Use LZ4 to match Stock Moto format (Fixes "Bootloader Fallback")
+BOARD_RAMDISK_USE_LZ4 := true
 
 # Partitions
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 100663296
@@ -113,7 +118,8 @@ BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX_LOCATION := 1
 
 # TWRP Specifics
 TW_THEME := portrait_hdpi
-TW_EXTRA_LANGUAGES := true
+# FIX: Disable extra languages to save ~5MB (Prevents Size Error)
+TW_EXTRA_LANGUAGES := false
 TW_SCREEN_BLANK_ON_BOOT := true
 TW_INPUT_BLACKLIST := "hbtp_vm"
 TW_USE_TOOLBOX := true
