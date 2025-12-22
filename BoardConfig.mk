@@ -48,9 +48,9 @@ TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_HEADER_ARCH := arm64
 
 # Kernel - Prebuilt
-# FIX: Points to 'kernel' and 'dtb' (Exact names, NO EXTENSIONS)
-TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
-TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
+# FIX: Use 'abspath' to force the full system path. This fixes "No such file".
+TARGET_PREBUILT_KERNEL := $(abspath $(DEVICE_PATH)/prebuilt/kernel)
+TARGET_PREBUILT_DTB := $(abspath $(DEVICE_PATH)/prebuilt/dtb)
 
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
 BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
