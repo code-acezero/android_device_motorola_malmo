@@ -44,6 +44,25 @@ jobs:
         cd workspace
         git clone https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
 
+
+   - name: 🔧 FIX - Force Rename DTB (The Nuclear Option)
+      run: |
+        echo "Looking for DTB file..."
+        cd workspace/device/motorola/malmo/prebuilt
+        
+        # Find whatever file is there (dtb, dtb.img, or dtb.dtb)
+        FILE=$(ls dtb* | head -n 1)
+        echo "Found file: $FILE"
+        
+        # Rename it to 'dtb.img' so we are 100% sure of the name
+        mv "$FILE" dtb.img
+        echo "Renamed $FILE to dtb.img"
+        
+        # Verify it exists now
+        ls -la dtb.img
+
+
+
     - name: Build Recovery
       run: |
         export PATH=~/bin:$PATH
