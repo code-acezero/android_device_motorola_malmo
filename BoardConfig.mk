@@ -48,9 +48,9 @@ TARGET_KERNEL_ARCH := arm64
 TARGET_KERNEL_HEADER_ARCH := arm64
 
 # Kernel - Prebuilt
-# FIX: Use 'abspath' to force the full system path. This fixes "No such file".
-TARGET_PREBUILT_KERNEL := $(abspath $(DEVICE_PATH)/prebuilt/kernel)
-TARGET_PREBUILT_DTB := $(abspath $(DEVICE_PATH)/prebuilt/dtb)
+# FIX: Use relative path + .img extension to match standard Android expectations.
+TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
+TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb.img
 
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
 BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
@@ -61,6 +61,7 @@ BOARD_MKBOOTIMG_ARGS += --second_offset $(BOARD_KERNEL_SECOND_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
 BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
+
 
 # Partitions
 BOARD_VENDOR_BOOTIMAGE_PARTITION_SIZE := 100663296
