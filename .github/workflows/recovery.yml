@@ -7,7 +7,12 @@ jobs:
   build:
     name: TWRP Build CI
     runs-on: ubuntu-22.04
-
+    
+- name: DEBUG - Show Me The Files
+      run: |
+        echo "Listing contents of prebuilt folder:"
+        ls -la workspace/device/motorola/malmo/prebuilt/
+        
     steps:
     - name: Checkout Source
       uses: actions/checkout@v4
