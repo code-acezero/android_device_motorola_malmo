@@ -32,19 +32,22 @@ TARGET_BOOTLOADER_BOARD_NAME := malmo
 TARGET_NO_BOOTLOADER := true
 TARGET_USES_UEFI := true
 
+# ⚡ A/B SLOT SUPPORT (Essential for G85) ⚡
+AB_OTA_UPDATER := true
+
 # ---------------------------------------------------------
 # KERNEL CONFIG (Standalone Recovery Mode)
 # ---------------------------------------------------------
-# 1. Use the Stock CMDLINE you verified
 BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig androidboot.fastboot=1 androidboot.selinux=permissive
 
 BOARD_BOOT_HEADER_VERSION := 4
 BOARD_KERNEL_PAGESIZE := 4096
 BOARD_KERNEL_IMAGE_NAME := kernel
 
-# 2. Point to the KERNEL extracted from Stock boot.img
-# (Make sure the file is named 'kernel' with no extension in prebuilt folder)
+# ⚠️ FILE CHECK: Ensure 'device/motorola/malmo/prebuilt/' has a file named EXACTLY 'kernel'
 TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
+
+# ⚠️ FILE CHECK: Ensure 'device/motorola/malmo/prebuilt/' has a file named EXACTLY 'dtb'
 TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
 
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
@@ -68,10 +71,7 @@ BOARD_DTB_OFFSET           := 0x01f00000
 # ---------------------------------------------------------
 # PARTITIONS (128MB Recovery)
 # ---------------------------------------------------------
-# Recovery is 128MB (Matches your Stock Recovery)
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728
-
-# Boot is 96MB (Matches your Stock Boot)
 BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
 
 BOARD_HAS_LARGE_FILESYSTEM := true
@@ -80,10 +80,9 @@ BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 TARGET_COPY_OUT_VENDOR := vendor
 
-# ⚡ KEY FLAGS FOR STANDALONE RECOVERY ⚡
+# ⚡ DEDICATED RECOVERY FLAGS ⚡
 BOARD_USES_RECOVERY_AS_BOOT := false
 TARGET_NO_RECOVERY := false
-# Removed 'BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT' so TWRP stays in recovery.img
 
 # ---------------------------------------------------------
 # COMPRESSION
@@ -98,6 +97,12 @@ BOARD_AVB_ENABLE := true
 BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
 BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := 1
+
+# ⚡ FIX FOR BUILD ERROR: RECOVERY SIGNING KEYS ⚡
+# Uses standard test keys since bootloader is unlocked
+BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
+BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA4096
+BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
 
 VENDOR_SECURITY_PATCH := 2025-12-31
 PLATFORM_VERSION := 14
