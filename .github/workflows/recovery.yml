@@ -47,10 +47,10 @@ jobs:
 
     - name: Clone Device Tree
       run: |
-        cd workspace
-        # Standard Clone
-        git clone https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
-
+        # 🟢 FIX: Copy the specific branch we are working on into the workspace
+        # We use the GITHUB_WORKSPACE variable to find your current edited files
+        cp -r ${GITHUB_WORKSPACE} workspace/device/motorola/malmo
+        
     - name: Build Recovery
       run: |
         export PATH=~/bin:$PATH
