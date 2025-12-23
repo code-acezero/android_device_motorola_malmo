@@ -1,172 +1,59 @@
-name: Build TWRP for Moto G85 5G
+name: Build TWRP Recovery
 
 on:
   workflow_dispatch:
-    inputs:
-      clean_build:
-        description: 'Clean build?'
-        required: false
-        default: 'false'
 
 jobs:
   build:
-    name: TWRP Build CI
     runs-on: ubuntu-22.04
-
+    
     steps:
     - name: Clean Disk Space
       uses: rokibhasansagar/slimhub_actions@main
-
+    
     - name: Install Dependencies
       run: |
         sudo apt-get update
         sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig python3 python3-pip bc libssl-dev
-
-    - name: Install Repo Tool
+    
+    - name: Setup Repo Tool
       run: |
         mkdir -p ~/bin
-        curl -s https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
-        echo 'export PATH=~/bin:$PATH' >> ~/.bashrc
-        export PATH=~/bin:$PATH
-
-    - name: Initialize TWRP 12.1 Source
+        echo 'export PATH=$HOME/bin:$PATH' >> ~/.bashrc
+        export PATH=$HOME/bin:$PATH
+    
+    - name: Initialize TWRP Source
       run: |
-        export PATH=~/bin:$PATH
+        export PATH=$HOME/bin:$PATH
         mkdir -p workspace
         cd workspace
-        
-        echo "=== Initializing TWRP 12.1 (No Rust needed) ==="
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
-        
-        echo "=== Syncing base source ==="
         repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
-
+    
     - name: Clone Device Tree
       run: |
         cd workspace
-        
-        echo "=== Cloning device tree ==="
         mkdir -p device/motorola
         git clone -b malmo-a14-twrp https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
-        
-        echo "=== Device tree contents ==="
-        ls -la device/motorola/malmo/
-
-    - name: Update Device Tree for A12
+    
+    - name: Fix Device Tree
       run: |
         cd workspace/device/motorola/malmo
-        
-        echo "=== Updating device tree for A12 TWRP ==="
-        
-        # Update twrp_malmo.mk for A12
-        cat > twrp_malmo.mk << 'EOF'
-#
-# Copyright (C) 2025 The Android Open Source Project
-#
-# SPDX-License-Identifier: Apache-2.0
-#
-
-# Inherit from device
-$(call inherit-product, device/motorola/malmo/device.mk)
-
-# Inherit from AOSP
-$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
-$(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
-
-# Inherit TWRP configuration
-$(call inherit-product, vendor/twrp/config/common.mk)
-
-# Device identifier
-PRODUCT_DEVICE := malmo
-PRODUCT_NAME := twrp_malmo
-PRODUCT_BRAND := motorola
-PRODUCT_MODEL := Moto G85 5G
-PRODUCT_MANUFACTURER := motorola
-EOF
-        
-        # Update AndroidProducts.mk
         echo 'PRODUCT_MAKEFILES := $(LOCAL_DIR)/twrp_malmo.mk' > AndroidProducts.mk
         echo 'COMMON_LUNCH_CHOICES := twrp_malmo-eng' >> AndroidProducts.mk
-        
-        echo "=== Updated files ==="
-        echo "AndroidProducts.mk:"
-        cat AndroidProducts.mk
-        echo ""
-        echo "twrp_malmo.mk first 20 lines:"
-        head -20 twrp_malmo.mk
-
-    - name: Setup Build Environment
-      run: |
-        cd workspace
-        
-        echo "=== Setting up environment ==="
-        source build/envsetup.sh
-        
-        export ALLOW_MISSING_DEPENDENCIES=true
-        export LC_ALL=C
-        export WITH_TWRP=true
-        
-        echo "Environment setup complete"
-
+    
     - name: Build Recovery
       run: |
         cd workspace
-        
         source build/envsetup.sh
-        
-        echo "=== Building TWRP Recovery ==="
-        
-        # Try different approaches
-        echo "Method 1: Trying lunch..."
-        if lunch twrp_malmo-eng 2>/dev/null; then
-          echo "✓ Lunch successful"
-          mka recoveryimage -j$(nproc --all)
-        else
-          echo "Method 2: Trying direct make..."
-          make recoveryimage TARGET_DEVICE=malmo -j$(nproc --all) 2>&1 | tee build.log
-        fi
-
-    - name: Check Build Output
-      run: |
-        cd workspace
-        
-        echo "=== Checking build results ==="
-        
-        # Check for recovery image
-        if [ -f out/target/product/malmo/recovery.img ]; then
-          echo "✓ SUCCESS! Found recovery.img"
-          echo "File size: $(ls -lh out/target/product/malmo/recovery.img)"
-          
-          # Basic check if it's bootable
-          echo "=== File type ==="
-          file out/target/product/malmo/recovery.img
-        else
-          echo "✗ No recovery.img found"
-          echo "Searching for output..."
-          find out/target/product -name "*.img" -type f 2>/dev/null | xargs ls -lh 2>/dev/null || echo "No image files found"
-          
-          # Show build log if exists
-          if [ -f build.log ]; then
-            echo "=== Last 50 lines of build log ==="
-            tail -50 build.log
-          fi
-        fi
-
-    - name: Upload Recovery Image
-      if: success()
+        export ALLOW_MISSING_DEPENDENCIES=true
+        export LC_ALL=C
+        make recoveryimage TARGET_DEVICE=malmo -j$(nproc --all)
+    
+    - name: Upload Recovery
       uses: actions/upload-artifact@v4
       with:
-        name: TWRP-Recovery-A12
-        path: workspace/out/target/product/malmo/*.img
-        if-no-files-found: error
-
-    - name: Upload Build Logs
-      if: always()
-      uses: actions/upload-artifact@v4
-      with:
-        name: Build-Logs-A12
-        path: |
-          workspace/build.log
-          workspace/out/error.log
-        if-no-files-found: ignore
+        name: TWRP-Recovery
+        path: workspace/out/target/product/malmo/recovery.img
