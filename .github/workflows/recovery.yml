@@ -27,7 +27,7 @@ jobs:
         chmod a+x ~/bin/repo
         export PATH=~/bin:$PATH
 
- - name: Initialize Repo (Low Space Mode)
+    - name: Initialize Repo (Low Space Mode)
       run: |
         export PATH=~/bin:$PATH
         mkdir workspace
