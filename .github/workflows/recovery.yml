@@ -15,7 +15,7 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig python3 python3-pip
+        sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig python3 python3-pip bc rsync
 
     - name: Install Repo Tool
       run: |
@@ -27,56 +27,116 @@ jobs:
     - name: Initialize Repo
       run: |
         export PATH=~/bin:$PATH
-        mkdir workspace
+        mkdir -p workspace
         cd workspace
-        # 1. Init Android 14 (TWRP 14.1)
+        # Init TWRP manifest
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
         
-        # 2. Exclude Rust to save space
+        # Exclude Rust to save space
         mkdir -p .repo/local_manifests
         echo '<?xml version="1.0" encoding="UTF-8"?><manifest><remove-project name="platform/prebuilts/rust" /></manifest>' > .repo/local_manifests/remove_rust.xml
         
-        # 3. Sync
-        repo sync -c -j$(nproc --all)
+        # Sync
+        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
 
-    - name: Clone Device Tree (User Method)
+    - name: Clone Device Tree
       run: |
         cd workspace
-        
-        # 1. Clone to a temporary folder (Exactly like you did on PC)
-        git clone https://github.com/code-acezero/android_device_motorola_malmo temp_tree
-        
-        # 2. Create the destination folder
         mkdir -p device/motorola/malmo
-        
-        # 3. Move the files to the correct place
-        cp -r temp_tree/* device/motorola/malmo/
-        rm -rf temp_tree
+        git clone https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
 
-    - name: Fix AndroidProducts.mk Path
+    - name: Debug Device Tree Structure
       run: |
         cd workspace/device/motorola/malmo
         
-        # 🛑 CRITICAL FIX: The build system is blind to variables here.
-        # We must overwrite this file to point to the HARDCODED path.
-        echo 'PRODUCT_MAKEFILES := device/motorola/malmo/twrp_malmo.mk' > AndroidProducts.mk
-        echo 'COMMON_LUNCH_CHOICES := twrp_malmo-eng' >> AndroidProducts.mk
+        echo "=== Current files in device tree ==="
+        ls -la
         
-        # Verification: Print the file to logs so we can see it
+        echo "=== Content of all .mk files ==="
+        for mkfile in *.mk; do
+          echo "===== $mkfile ====="
+          cat "$mkfile"
+          echo ""
+        done
+        
+        echo "=== Checking AndroidProducts.mk ==="
         cat AndroidProducts.mk
 
-    - name: Build Recovery
+    - name: Try Building with Debug Info
       run: |
         export PATH=~/bin:$PATH
         cd workspace
+        
+        echo "=== Setting up environment ==="
         . build/envsetup.sh
         
-        # Build
-        lunch twrp_malmo-eng
-        mka recoveryimage -j$(nproc --all)
+        echo "=== Checking available products ==="
+        # List all products
+        echo "All lunch combos:" | get_build_var COMMON_LUNCH_CHOICES 2>/dev/null || echo "Could not get lunch combos"
+        
+        echo "=== Trying to lunch ==="
+        # Try with more debugging
+        set -x  # Enable debug output
+        if lunch twrp_malmo-eng; then
+          echo "✓ Lunch successful!"
+          
+          echo "=== Starting build with detailed output ==="
+          # Build with maximum verbosity
+          mka recoveryimage -j1 2>&1 | tee build_output.log
+          
+          # Check exit status
+          BUILD_STATUS=$?
+          echo "Build exited with status: $BUILD_STATUS"
+          
+          if [ $BUILD_STATUS -eq 0 ]; then
+            echo "✓ Build successful!"
+          else
+            echo "✗ Build failed!"
+            echo "=== Last 50 lines of build output ==="
+            tail -50 build_output.log
+          fi
+        else
+          echo "✗ Lunch failed!"
+          echo "=== Trying to find the correct product name ==="
+          
+          # Try alternative product names
+          for product in omni_malmo aosp_malmo lineage_malmo; do
+            echo "Trying: $product-eng"
+            if lunch $product-eng 2>/dev/null; then
+              echo "✓ Found working product: $product-eng"
+              echo "Building with $product-eng..."
+              mka recoveryimage -j1 2>&1 | tee build_output_$product.log
+              break
+            fi
+          done
+        fi
+        set +x
+        
+    - name: Check Build Output
+      if: always()
+      run: |
+        cd workspace
+        echo "=== Build artifacts ==="
+        find out/target/product -name "*.img" -type f 2>/dev/null | head -20 || echo "No images found"
+        
+        echo "=== Log files ==="
+        ls -la *.log 2>/dev/null || echo "No log files"
 
-    - name: Upload Artifact
+    - name: Upload Debug Files
+      if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: TWRP-Recovery-G85-5G
-        path: workspace/out/target/product/malmo/recovery.img
+        name: Debug-Files
+        path: |
+          workspace/*.log
+          workspace/out/error.log
+          workspace/out/build.log
+        if-no-files-found: warn
+
+    - name: Upload Recovery Images
+      if: success()
+      uses: actions/upload-artifact@v4
+      with:
+        name: Recovery-Images
+        path: workspace/out/target/product/*/*.img
+        if-no-files-found: warn
