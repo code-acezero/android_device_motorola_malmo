@@ -7,22 +7,19 @@
 LOCAL_PATH := device/motorola/malmo
 
 # ---------------------------------------------------------
-# 1. COPY FILES (Cleaned Up)
+# 1. COPY CONFIG SCRIPTS
 # ---------------------------------------------------------
-# Note: Kernel/DTB are handled by BoardConfig.mk now.
-# We only copy the config scripts here.
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/recovery/root/init.recovery.qcom.rc:recovery/root/init.recovery.qcom.rc \
     $(LOCAL_PATH)/recovery/root/init.recovery.usb.rc:recovery/root/init.recovery.usb.rc \
     $(LOCAL_PATH)/recovery/root/servicemanager.recovery.rc:recovery/root/servicemanager.recovery.rc
 
-# Copy Fstab and Flags
 PRODUCT_COPY_FILES += \
     $(LOCAL_PATH)/recovery/root/system/etc/recovery.fstab:recovery/root/system/etc/recovery.fstab \
     $(LOCAL_PATH)/recovery/root/system/etc/twrp.flags:recovery/root/system/etc/twrp.flags
 
 # ---------------------------------------------------------
-# 2. A/B CONFIGURATION
+# 2. A/B PARTITION CONFIG
 # ---------------------------------------------------------
 AB_OTA_POSTINSTALL_CONFIG += \
     RUN_POSTINSTALL_system=true \
@@ -31,22 +28,19 @@ AB_OTA_POSTINSTALL_CONFIG += \
     POSTINSTALL_OPTIONAL_system=true
 
 # ---------------------------------------------------------
-# 3. BOOT CONTROL
+# 3. PACKAGES
 # ---------------------------------------------------------
 PRODUCT_PACKAGES += \
     android.hardware.boot@1.0-impl \
     android.hardware.boot@1.0-service \
     android.hardware.boot@1.0-impl.recovery \
+    bootctrl.malmo \
     otapreopt_script \
     cppreopts.sh \
     update_engine \
     update_verifier \
-    update_engine_sideload \
-    bootctrl.malmo
+    update_engine_sideload
 
-# ---------------------------------------------------------
-# 4. LIBRARIES
-# ---------------------------------------------------------
 PRODUCT_PACKAGES += \
     libion \
     libxml2
