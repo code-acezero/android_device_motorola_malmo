@@ -9,6 +9,6 @@ PRODUCT_MAKEFILES := \
     $(LOCAL_DIR)/twrp_malmo.mk
 
 COMMON_LUNCH_CHOICES := \
-    omni_malmo-user \
-    omni_malmo-userdebug \
-    omni_malmo-eng
+    twrp_malmo-user \
+    twrp_malmo-userdebug \
+    twrp_malmo-eng
