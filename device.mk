@@ -15,11 +15,16 @@ AB_OTA_POSTINSTALL_CONFIG += \
     POSTINSTALL_OPTIONAL_system=true
 
 # Boot control HAL
-# FIX: Use generic Android boot control, not the missing 'blair' one.
+# Use the Qualcomm specific boot control for better compatibility
 PRODUCT_PACKAGES += \
-    android.hardware.boot@1.0-impl \
-    android.hardware.boot@1.0-service \
-    android.hardware.boot@1.0-impl.recovery
+    android.hardware.boot@1.2-impl-qti \
+    android.hardware.boot@1.2-impl-qti.recovery \
+    android.hardware.boot@1.2-service
+
+# Boot Control Tools
+PRODUCT_PACKAGES += \
+    bootctrl.holi \
+    bootctrl.holi.recovery
 
 # FIX: Removed 'bootctrl.blair'. We don't have the source code for it.
 # PRODUCT_PACKAGES += \
