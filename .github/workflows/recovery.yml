@@ -32,7 +32,8 @@ jobs:
         export PATH=~/bin:$PATH
         mkdir workspace
         cd workspace
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
+        # 🟢 CHANGED: Switched to TWRP 14.1 (Android 14) branch
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
         repo sync -c -j$(nproc --all)
 
     - name: Clone Device Tree
@@ -47,11 +48,11 @@ jobs:
         cd workspace
         . build/envsetup.sh
         
-        # Lunch command matching your omni_malmo.mk
-        lunch omni_malmo-eng
+        # 🟢 CHANGED: Switched to 'twrp_malmo-eng' (Matches your new makefile name)
+        lunch twrp_malmo-eng
         
         # Build Dedicated Recovery
-        mka recoveryimage
+        mka recoveryimage -j$(nproc --all)
 
     - name: Upload Artifact
       uses: actions/upload-artifact@v4
