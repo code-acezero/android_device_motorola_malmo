@@ -6,7 +6,7 @@
 #
 
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/twrp_malmo.mk
+    device/motorola/malmo/twrp_malmo.mk
 
 COMMON_LUNCH_CHOICES := \
     twrp_malmo-user \
