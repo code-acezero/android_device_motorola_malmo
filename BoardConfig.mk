@@ -117,16 +117,44 @@ TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
 
 # ---------------------------------------------------------
-# TWRP UI
+# TWRP UI - FIXED SECTION
 # ---------------------------------------------------------
+# Screen dimensions for theme selection
+TARGET_SCREEN_WIDTH := 1080
+TARGET_SCREEN_HEIGHT := 2400
+
+# Theme selection - MUST BE ONE OF: portrait_hdpi, portrait_mdpi, landscape_hdpi, landscape_mdpi, watch_mdpi
 TW_THEME := portrait_hdpi
-TW_EXTRA_LANGUAGES := false
+
+# Display settings
 TW_SCREEN_BLANK_ON_BOOT := true
+TW_NO_SCREEN_BLANK := true
+TW_NO_SCREEN_TIMEOUT := true
+TW_FRAMERATE := 60
+TW_EXTRA_LANGUAGES := false
 TW_INPUT_BLACKLIST := "hbtp_vm"
 TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
+TW_MAX_BRIGHTNESS := 2047
+TW_DEFAULT_BRIGHTNESS := 1200
+
+# UI offsets
+TW_Y_OFFSET := 80
+TW_H_OFFSET := -80
+
+# Tools
 TW_INCLUDE_REPACKTOOLS := true
 TW_INCLUDE_RESETPROP := true
 TW_INCLUDE_LIBRESETPROP := true
 TW_EXCLUDE_DEFAULT_USB_INIT := true
-TW_Y_OFFSET := 80
-TW_H_OFFSET := -80
+TW_USE_TOOLBOX := true
+TW_INCLUDE_FASTBOOTD := true
+TW_INCLUDE_PYTHON := true
+
+# Device specifics
+TW_HAS_NO_RECOVERY_PARTITION := true
+TW_EXCLUDE_APEX := true
+
+# Debug
+TWRP_INCLUDE_LOGCAT := true
+TARGET_USES_LOGD := true
+BOARD_SUPPRESS_SECURE_ERASE := true
