@@ -47,11 +47,9 @@ jobs:
 
     - name: Clone Device Tree
       run: |
-        # 1. Create the destination directory structure first
-        mkdir -p workspace/device/motorola
-        
-        # 2. Copy your edited files into the build tree
-        cp -r ${GITHUB_WORKSPACE} workspace/device/motorola/malmo
+        cd workspace
+        # Standard Clone - This pulls your latest fixes from GitHub
+        git clone https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
         
     - name: Build Recovery
       run: |
