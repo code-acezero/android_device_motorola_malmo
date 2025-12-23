@@ -27,13 +27,22 @@ jobs:
         chmod a+x ~/bin/repo
         export PATH=~/bin:$PATH
 
-    - name: Initialize Repo (Low Space Mode)
+ - name: Initialize Repo (Low Space Mode)
       run: |
         export PATH=~/bin:$PATH
         mkdir workspace
         cd workspace
-        # 🟢 CHANGED: Switched to TWRP 14.1 (Android 14) branch
+        # 1. Initialize the Manifest
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
+        
+        # 🟢 2. THE FIX: Create a local manifest to EXCLUDE the massive Rust repo
+        mkdir -p .repo/local_manifests
+        echo '<?xml version="1.0" encoding="UTF-8"?>
+        <manifest>
+            <remove-project name="platform/prebuilts/rust" />
+        </manifest>' > .repo/local_manifests/remove_rust.xml
+        
+        # 3. Sync (Now lighter!)
         repo sync -c -j$(nproc --all)
 
     - name: Clone Device Tree
