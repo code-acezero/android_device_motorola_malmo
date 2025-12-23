@@ -6,7 +6,7 @@
 #
 
 PRODUCT_MAKEFILES := \
-    $(LOCAL_DIR)/omni_malmo.mk
+    $(LOCAL_DIR)/twrp_malmo.mk
 
 COMMON_LUNCH_CHOICES := \
     omni_malmo-user \
