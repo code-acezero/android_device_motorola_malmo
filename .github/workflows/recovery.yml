@@ -30,14 +30,14 @@ jobs:
         echo 'export PATH=~/bin:$PATH' >> ~/.bashrc
         export PATH=~/bin:$PATH
 
-    - name: Initialize TWRP Source
+    - name: Initialize TWRP 12.1 Source
       run: |
         export PATH=~/bin:$PATH
         mkdir -p workspace
         cd workspace
         
-        echo "=== Initializing TWRP 14.1 ==="
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
+        echo "=== Initializing TWRP 12.1 (No Rust needed) ==="
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
         
         echo "=== Syncing base source ==="
         repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags
@@ -53,68 +53,111 @@ jobs:
         echo "=== Device tree contents ==="
         ls -la device/motorola/malmo/
 
+    - name: Update Device Tree for A12
+      run: |
+        cd workspace/device/motorola/malmo
+        
+        echo "=== Updating device tree for A12 TWRP ==="
+        
+        # Update twrp_malmo.mk for A12
+        cat > twrp_malmo.mk << 'EOF'
+#
+# Copyright (C) 2025 The Android Open Source Project
+#
+# SPDX-License-Identifier: Apache-2.0
+#
+
+# Inherit from device
+$(call inherit-product, device/motorola/malmo/device.mk)
+
+# Inherit from AOSP
+$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
+$(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
+
+# Inherit TWRP configuration
+$(call inherit-product, vendor/twrp/config/common.mk)
+
+# Device identifier
+PRODUCT_DEVICE := malmo
+PRODUCT_NAME := twrp_malmo
+PRODUCT_BRAND := motorola
+PRODUCT_MODEL := Moto G85 5G
+PRODUCT_MANUFACTURER := motorola
+EOF
+        
+        # Update AndroidProducts.mk
+        echo 'PRODUCT_MAKEFILES := $(LOCAL_DIR)/twrp_malmo.mk' > AndroidProducts.mk
+        echo 'COMMON_LUNCH_CHOICES := twrp_malmo-eng' >> AndroidProducts.mk
+        
+        echo "=== Updated files ==="
+        echo "AndroidProducts.mk:"
+        cat AndroidProducts.mk
+        echo ""
+        echo "twrp_malmo.mk first 20 lines:"
+        head -20 twrp_malmo.mk
+
     - name: Setup Build Environment
       run: |
         cd workspace
         
         echo "=== Setting up environment ==="
-        . build/envsetup.sh
+        source build/envsetup.sh
         
         export ALLOW_MISSING_DEPENDENCIES=true
         export LC_ALL=C
+        export WITH_TWRP=true
         
-        echo "=== Checking available products ==="
-        # List available products
-        echo "Available lunch combos:" | get_build_var COMMON_LUNCH_CHOICES 2>/dev/null || echo "Could not get lunch combos"
+        echo "Environment setup complete"
 
     - name: Build Recovery
       run: |
         cd workspace
         
-        . build/envsetup.sh
+        source build/envsetup.sh
         
-        echo "=== Attempting build ==="
+        echo "=== Building TWRP Recovery ==="
         
-        # Method 1: Try lunch first
+        # Try different approaches
+        echo "Method 1: Trying lunch..."
         if lunch twrp_malmo-eng 2>/dev/null; then
-          echo "✓ Lunch successful with twrp_malmo-eng"
+          echo "✓ Lunch successful"
           mka recoveryimage -j$(nproc --all)
         else
-          echo "⚠ Lunch failed, trying direct build..."
-          
-          # Method 2: Direct build
-          export TARGET_DEVICE=malmo
-          export TARGET_PRODUCT=twrp_malmo
-          
-          make recoveryimage -j$(nproc --all) 2>&1 | tee build.log
+          echo "Method 2: Trying direct make..."
+          make recoveryimage TARGET_DEVICE=malmo -j$(nproc --all) 2>&1 | tee build.log
         fi
 
     - name: Check Build Output
       run: |
         cd workspace
         
-        echo "=== Build output ==="
+        echo "=== Checking build results ==="
         
+        # Check for recovery image
         if [ -f out/target/product/malmo/recovery.img ]; then
-          echo "✓ SUCCESS: recovery.img found!"
-          ls -lh out/target/product/malmo/recovery.img
+          echo "✓ SUCCESS! Found recovery.img"
+          echo "File size: $(ls -lh out/target/product/malmo/recovery.img)"
           
-          # Check if it's TWRP
-          echo "=== Checking TWRP signature ==="
-          if file out/target/product/malmo/recovery.img | grep -q "Android bootimg"; then
-            echo "✓ Valid Android boot image"
-          fi
+          # Basic check if it's bootable
+          echo "=== File type ==="
+          file out/target/product/malmo/recovery.img
         else
           echo "✗ No recovery.img found"
-          echo "Looking for any output..."
-          find out/target/product -type f -name "*.img" 2>/dev/null | head -10
+          echo "Searching for output..."
+          find out/target/product -name "*.img" -type f 2>/dev/null | xargs ls -lh 2>/dev/null || echo "No image files found"
+          
+          # Show build log if exists
+          if [ -f build.log ]; then
+            echo "=== Last 50 lines of build log ==="
+            tail -50 build.log
+          fi
         fi
 
     - name: Upload Recovery Image
       if: success()
       uses: actions/upload-artifact@v4
       with:
-        name: TWRP-Recovery
+        name: TWRP-Recovery-A12
         path: workspace/out/target/product/malmo/*.img
         if-no-files-found: error
 
@@ -122,7 +165,7 @@ jobs:
       if: always()
       uses: actions/upload-artifact@v4
       with:
-        name: Build-Logs
+        name: Build-Logs-A12
         path: |
           workspace/build.log
           workspace/out/error.log
