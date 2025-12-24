@@ -47,20 +47,16 @@ jobs:
         # Clone your specific branch
         git clone -b malmo-a14-twrp https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
 
-    - name: Apply Critical Fixes (Theme & Partitions)
+    - name: Apply Critical Fixes (Theme, Partitions & 64-Bit)
       run: |
         cd workspace/device/motorola/malmo
         
-        echo "=== Overwriting BoardConfig.mk to fix UI/Theme errors ==="
-        
-        # 1. GENERATE CORRECT BOARDCONFIG
-        # This fixes: "Could not find ui.xml" and "TARGET_SCREEN_WIDTH" errors
-        # This fixes: "No recovery.img" by enforcing the partition settings
+        echo "=== 1. Generatng BoardConfig.mk (Device Config) ==="
         cat > BoardConfig.mk << 'EOF'
         DEVICE_PATH := device/motorola/malmo
         ALLOW_MISSING_DEPENDENCIES := true
         
-        # Architecture (Holi Platform)
+        # Architecture
         TARGET_ARCH := arm64
         TARGET_ARCH_VARIANT := armv8-a
         TARGET_CPU_ABI := arm64-v8a
@@ -82,8 +78,13 @@ jobs:
         # Partitions
         AB_OTA_UPDATER := true
         AB_OTA_PARTITIONS += boot dtbo recovery system system_ext product vendor vbmeta
+        BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728
+        BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
+        BOARD_FLASH_BLOCK_SIZE := 262144
+        BOARD_USES_RECOVERY_AS_BOOT := false
+        TARGET_NO_RECOVERY := false
         
-        # Kernel
+        # Header V2
         BOARD_BOOT_HEADER_VERSION := 2
         BOARD_KERNEL_PAGESIZE := 4096
         BOARD_KERNEL_IMAGE_NAME := kernel
@@ -93,31 +94,16 @@ jobs:
         BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
         BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
         
-        # ⚡ RECOVERY PARTITION CONFIG (Forces recovery.img generation) ⚡
-        BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728
-        BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
-        BOARD_FLASH_BLOCK_SIZE := 262144
-        BOARD_USES_RECOVERY_AS_BOOT := false
-        TARGET_NO_RECOVERY := false
-        
-        # File Systems
-        BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
-        BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
-        BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
-        TARGET_COPY_OUT_VENDOR := vendor
-        
-        # Crypto
+        # Crypto & Platform
         PLATFORM_VERSION := 12.1.0
         VENDOR_SECURITY_PATCH := 2025-12-31
         BOARD_USES_QCOM_FBE_DECRYPTION := true
         TW_INCLUDE_CRYPTO := true
         
-        # ⚡ THEME & UI FIXES (Solves "ui.xml" error) ⚡
+        # TWRP UI
         TARGET_SCREEN_WIDTH := 1080
         TARGET_SCREEN_HEIGHT := 2400
         TW_THEME := portrait_hdpi
-        
-        # TWRP Settings
         TW_SCREEN_BLANK_ON_BOOT := true
         TW_FRAMERATE := 60
         TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
@@ -128,15 +114,18 @@ jobs:
         TW_EXCLUDE_APEX := true
         EOF
         
-        # 2. GENERATE ANDROIDPRODUCTS.MK
+        echo "=== 2. Generating AndroidProducts.mk ==="
         echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/twrp_malmo.mk" > AndroidProducts.mk
         echo "COMMON_LUNCH_CHOICES := twrp_malmo-eng" >> AndroidProducts.mk
         
-        # 3. GENERATE TWRP_MALMO.MK
+        echo "=== 3. Generating twrp_malmo.mk (Product Config) ==="
+        # FIX IS HERE: Added core_64_bit.mk to tell build system this is a 64-bit OS
         cat > twrp_malmo.mk << 'MK_EOF'
         $(call inherit-product, device/motorola/malmo/device.mk)
+        $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
         $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
         $(call inherit-product, vendor/twrp/config/common.mk)
+        
         PRODUCT_DEVICE := malmo
         PRODUCT_NAME := twrp_malmo
         PRODUCT_BRAND := motorola
