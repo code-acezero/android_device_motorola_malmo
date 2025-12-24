@@ -1,4 +1,4 @@
-name: Build TWRP Recovery
+name: Build TWRP Recovery (Fixed OS Version & DTB)
 
 on:
   workflow_dispatch:
@@ -33,10 +33,10 @@ jobs:
       run: |
         mkdir -p workspace
         cd workspace
-        # Initialize TWRP 12.1 (Android 12)
+        # TWRP 12.1 (Stable Base)
         repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
         
-        # Robust Sync (Retry if network fails)
+        # Sync
         repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags || \
         repo sync -c -j1 --force-sync --no-clone-bundle --no-tags
 
@@ -44,15 +44,14 @@ jobs:
       run: |
         cd workspace
         mkdir -p device/motorola
-        # Clone your specific branch
         git clone -b malmo-a14-twrp https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
 
-    - name: Apply Critical Fixes (128MB Size + Kernel)
+    - name: Apply Critical Fixes (OS 14 + DTB)
       run: |
         cd workspace/device/motorola/malmo
         
-        # 🟢 1. Inject YOUR Exact BoardConfig (Forces 128MB)
-        echo "=== Generating BoardConfig.mk (128MB Fixed) ==="
+        # 🟢 1. Inject BoardConfig with FORCED ARGUMENTS
+        echo "=== Generating BoardConfig.mk ==="
         cat > BoardConfig.mk << 'EOF'
         DEVICE_PATH := device/motorola/malmo
         ALLOW_MISSING_DEPENDENCIES := true
@@ -77,39 +76,42 @@ jobs:
         TARGET_NO_BOOTLOADER := true
         TARGET_USES_UEFI := true
 
-        # A/B Support
+        # A/B
         AB_OTA_UPDATER := true
         AB_OTA_PARTITIONS += boot dtbo recovery system system_ext product vendor vbmeta vbmeta_system
 
-        # Kernel Config
+        # Kernel (Must exist on GitHub!)
         BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig androidboot.fastboot=1 androidboot.selinux=permissive
         
-        # 🟢 HEADER v4 (For Android 14) + KERNEL
-        BOARD_BOOT_HEADER_VERSION := 4
+        TARGET_PREBUILT_KERNEL := device/motorola/malmo/prebuilt/kernel
         BOARD_KERNEL_PAGESIZE := 4096
         BOARD_KERNEL_IMAGE_NAME := kernel
-        TARGET_PREBUILT_KERNEL := device/motorola/malmo/prebuilt/kernel
+
+        # 🟢 DTB CONFIGURATION (Fixes missing DTB)
         TARGET_PREBUILT_DTB := device/motorola/malmo/prebuilt/dtb
+        BOARD_INCLUDE_DTB_IN_BOOTIMG := true
         
-        # Header Arguments
+        # 🟢 BOOT ARGUMENTS (Fixes OS Version & DTB)
+        # We use Header v2 because it is safest for TWRP 12.1 source
+        BOARD_BOOT_HEADER_VERSION := 2
+        
         BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
         BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
-        BOARD_MKBOOTIMG_ARGS += --base $(BOARD_KERNEL_BASE)
-        BOARD_MKBOOTIMG_ARGS += --kernel_offset $(BOARD_KERNEL_OFFSET)
-        BOARD_MKBOOTIMG_ARGS += --ramdisk_offset $(BOARD_RAMDISK_OFFSET)
-        BOARD_MKBOOTIMG_ARGS += --second_offset $(BOARD_KERNEL_SECOND_OFFSET)
-        BOARD_MKBOOTIMG_ARGS += --tags_offset $(BOARD_KERNEL_TAGS_OFFSET)
-        BOARD_MKBOOTIMG_ARGS += --dtb_offset $(BOARD_DTB_OFFSET)
+        BOARD_MKBOOTIMG_ARGS += --base 0x00000000
+        BOARD_MKBOOTIMG_ARGS += --kernel_offset 0x00008000
+        BOARD_MKBOOTIMG_ARGS += --ramdisk_offset 0x01000000
+        BOARD_MKBOOTIMG_ARGS += --second_offset 0x00000000
+        BOARD_MKBOOTIMG_ARGS += --tags_offset 0x00000100
+        
+        # FORCE OS VERSION 14 HERE
+        BOARD_MKBOOTIMG_ARGS += --os_version 14.0.0
+        BOARD_MKBOOTIMG_ARGS += --os_patch_level 2024-08-05
+        
+        # FORCE DTB HERE
+        BOARD_MKBOOTIMG_ARGS += --dtb_offset 0x01f00000
         BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
 
-        BOARD_KERNEL_BASE          := 0x00000000
-        BOARD_KERNEL_OFFSET        := 0x00008000
-        BOARD_RAMDISK_OFFSET       := 0x01000000
-        BOARD_KERNEL_SECOND_OFFSET := 0x00000000
-        BOARD_KERNEL_TAGS_OFFSET   := 0x00000100
-        BOARD_DTB_OFFSET           := 0x01f00000
-
-        # 🟢 PARTITIONS (FIXED 128MB)
+        # Partitions
         BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728
         BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
         BOARD_FLASH_BLOCK_SIZE := 262144
@@ -123,26 +125,21 @@ jobs:
         TARGET_NO_RECOVERY := false
         BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := false
 
-        # Compression & AVB
+        # AVB & Compression
         BOARD_RAMDISK_USE_LZ4 := true
         BOARD_RAMDISK_LZ4_ARGUMENTS := -l -9
         BOARD_AVB_ENABLE := true
         BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
-        BOARD_AVB_VBMETA_SYSTEM_ALGORITHM := SHA256_RSA4096
-        BOARD_AVB_VBMETA_SYSTEM_ROLLBACK_INDEX := 1
-        BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
         BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA4096
+        BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
         BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
         BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
 
-        # Crypto & Versions
+        # Crypto
         VENDOR_SECURITY_PATCH := 2025-12-31
         PLATFORM_VERSION := 14
         PLATFORM_SECURITY_PATCH := 2024-08-05
         BOARD_USES_QCOM_FBE_DECRYPTION := true
-        BOARD_USES_METADATA_PARTITION := true
-        TW_INCLUDE_FBE_METADATA_DECRYPT := true
-        TW_USE_FSCRYPT_POLICY := 1
         TW_INCLUDE_CRYPTO := true
         TW_INCLUDE_CRYPTO_FBE := true
 
