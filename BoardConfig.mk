@@ -12,7 +12,8 @@ TARGET_ARCH := arm64
 TARGET_ARCH_VARIANT := armv8-a
 TARGET_CPU_ABI := arm64-v8a
 TARGET_CPU_VARIANT := generic
-TARGET_CPU_VARIANT_RUNTIME := kryo300
+# CORRECTION: Holi platform uses Kryo 660, not 300
+TARGET_CPU_VARIANT_RUNTIME := kryo660
 
 TARGET_2ND_ARCH := arm
 TARGET_2ND_ARCH_VARIANT := armv8-a
@@ -42,7 +43,7 @@ AB_OTA_PARTITIONS += \
     vbmeta_system
 
 # ---------------------------------------------------------
-# KERNEL CONFIG (The Header v2 Fix)
+# KERNEL CONFIG
 # ---------------------------------------------------------
 BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig androidboot.fastboot=1 androidboot.selinux=permissive
 
@@ -86,7 +87,8 @@ BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 TARGET_COPY_OUT_VENDOR := vendor
 
-# ⚡ DISABLE SPLITTING (Force Monolithic) ⚡
+# ⚡ DEDICATED RECOVERY CONFIG ⚡
+# These 3 lines confirm we are building recovery.img, not boot.img
 BOARD_USES_RECOVERY_AS_BOOT := false
 TARGET_NO_RECOVERY := false
 BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := false
@@ -108,7 +110,7 @@ BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
 
 VENDOR_SECURITY_PATCH := 2025-12-31
-PLATFORM_VERSION := 14
+PLATFORM_VERSION := 12.1.0
 BOARD_USES_QCOM_FBE_DECRYPTION := true
 BOARD_USES_METADATA_PARTITION := true
 TW_INCLUDE_FBE_METADATA_DECRYPT := true
@@ -123,7 +125,7 @@ TW_INCLUDE_CRYPTO_FBE := true
 TARGET_SCREEN_WIDTH := 1080
 TARGET_SCREEN_HEIGHT := 2400
 
-# Theme selection - MUST BE ONE OF: portrait_hdpi, portrait_mdpi, landscape_hdpi, landscape_mdpi, watch_mdpi
+# Theme selection
 TW_THEME := portrait_hdpi
 
 # Display settings
@@ -151,7 +153,8 @@ TW_INCLUDE_FASTBOOTD := true
 TW_INCLUDE_PYTHON := true
 
 # Device specifics
-TW_HAS_NO_RECOVERY_PARTITION := true
+# !!! REMOVED TO FIX RECOVERY.IMG GENERATION !!!
+# TW_HAS_NO_RECOVERY_PARTITION := true
 TW_EXCLUDE_APEX := true
 
 # Debug
