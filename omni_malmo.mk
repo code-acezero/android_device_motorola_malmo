@@ -15,7 +15,7 @@ $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
 $(call inherit-product, vendor/twrp/config/common.mk)
 
 # 4. Product Definition
-PRODUCT_NAME := twrp_malmo
+PRODUCT_NAME := omni_malmo
 PRODUCT_DEVICE := malmo
 PRODUCT_BRAND := motorola
 PRODUCT_MODEL := Moto G85 5G
