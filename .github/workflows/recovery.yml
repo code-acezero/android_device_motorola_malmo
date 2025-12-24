@@ -57,24 +57,24 @@ jobs:
         rm -f vendorsetup.sh
         
         # 2. Clean other configs
-        rm -f AndroidProducts.mk twrp_malmo.mk
+        rm -f AndroidProducts.mk omni_malmo.mk
         
         # 3. Generate AndroidProducts.mk (Using 'cat' for safety)
         echo "Generating AndroidProducts.mk..."
         cat > AndroidProducts.mk << 'EOF'
-        PRODUCT_MAKEFILES := $(LOCAL_DIR)/twrp_malmo.mk
-        COMMON_LUNCH_CHOICES := twrp_malmo-eng
+        PRODUCT_MAKEFILES := $(LOCAL_DIR)/omni_malmo.mk
+        COMMON_LUNCH_CHOICES := omni_malmo-eng
         EOF
 
         # 4. Generate twrp_malmo.mk (Added aosp_base.mk back!)
-        echo "Generating twrp_malmo.mk..."
-        cat > twrp_malmo.mk << 'EOF'
+        echo "Generating omni_malmo.mk..."
+        cat > omni_malmo.mk << 'EOF'
         $(call inherit-product, device/motorola/malmo/device.mk)
         $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
         $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
         $(call inherit-product, vendor/twrp/config/common.mk)
         
-        PRODUCT_NAME := twrp_malmo
+        PRODUCT_NAME := omni_malmo
         PRODUCT_DEVICE := malmo
         PRODUCT_BRAND := motorola
         PRODUCT_MODEL := moto g85 5G
@@ -101,7 +101,7 @@ jobs:
         . build/envsetup.sh
         
         # Build
-        lunch twrp_malmo-eng
+        lunch omni_malmo-eng
         mka recoveryimage -j$(nproc --all)
 
     - name: Upload Artifact
