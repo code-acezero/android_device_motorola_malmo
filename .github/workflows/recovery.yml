@@ -133,7 +133,7 @@ jobs:
         PRODUCT_MANUFACTURER := motorola
         MK_EOF
 
-     - name: Fix Build Conflict (Rsync Error)
+   - name: Fix Build Conflict (Rsync Error)
       run: |
         cd workspace
         echo "=== Patching build/make/core/Makefile to prevent vendor symlink conflict ==="
