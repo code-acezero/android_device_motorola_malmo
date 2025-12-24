@@ -49,46 +49,41 @@ jobs:
         cp -r temp_tree/* device/motorola/malmo/
         rm -rf temp_tree
 
-    - name: 🟢 FORCE FIX CONFIGS (Hardcoded Path)
+    - name: 🟢 FORCE FIX CONFIGS (Omni Version)
       run: |
         cd workspace/device/motorola/malmo
         
-        # 1. DELETE PROBLEMS
+        # 1. DELETE EVERYTHING that might conflict
         rm -f vendorsetup.sh AndroidProducts.mk twrp_malmo.mk omni_malmo.mk
         
-        # 2. GENERATE AndroidProducts.mk (CRITICAL FIX HERE)
-        # We use 'device/motorola/malmo/' instead of '$(LOCAL_DIR)/'
-        echo "Generating AndroidProducts.mk..."
-        cat > AndroidProducts.mk << 'EOF'
-        PRODUCT_MAKEFILES := device/motorola/malmo/omni_malmo.mk
-        COMMON_LUNCH_CHOICES := omni_malmo-eng
-        EOF
+        # 2. GENERATE AndroidProducts.mk (Hardcoded Path)
+        # We point directly to device/motorola/malmo/omni_malmo.mk
+        echo "PRODUCT_MAKEFILES := device/motorola/malmo/omni_malmo.mk" > AndroidProducts.mk
+        echo "COMMON_LUNCH_CHOICES := omni_malmo-eng" >> AndroidProducts.mk
 
-        # 3. GENERATE omni_malmo.mk
-        echo "Generating omni_malmo.mk..."
-        cat > omni_malmo.mk << 'EOF'
-        $(call inherit-product, device/motorola/malmo/device.mk)
-        $(call inherit-product, $(SRC_TARGET_DIR)/product/full_base_telephony.mk)
-        $(call inherit-product, vendor/twrp/config/common.mk)
+        # 3. GENERATE omni_malmo.mk (With SAFE Includes)
+        # We use aosp_base.mk because we KNOW it exists and works.
+        echo "\$(call inherit-product, device/motorola/malmo/device.mk)" > omni_malmo.mk
+        echo "\$(call inherit-product, \$(SRC_TARGET_DIR)/product/aosp_base.mk)" >> omni_malmo.mk
+        echo "\$(call inherit-product, \$(SRC_TARGET_DIR)/product/core_64_bit.mk)" >> omni_malmo.mk
+        echo "\$(call inherit-product, vendor/twrp/config/common.mk)" >> omni_malmo.mk
         
-        PRODUCT_NAME := omni_malmo
-        PRODUCT_DEVICE := malmo
-        PRODUCT_BRAND := motorola
-        PRODUCT_MODEL := moto g85 5G
-        PRODUCT_MANUFACTURER := motorola
-        PRODUCT_GMS_CLIENTID_BASE := android-motorola
-        PRODUCT_BUILD_PROP_OVERRIDES += PRIVATE_BUILD_DESC="malmo_g-user 14 UUOS34HV-V1-ST11.1 1b15fc release-keys"
-        BUILD_FINGERPRINT := motorola/malmo_g/malmo:14/UUOS34HV-V1-ST11.1/1b15fc:user/release-keys
-        EOF
+        echo "PRODUCT_NAME := omni_malmo" >> omni_malmo.mk
+        echo "PRODUCT_DEVICE := malmo" >> omni_malmo.mk
+        echo "PRODUCT_BRAND := motorola" >> omni_malmo.mk
+        echo "PRODUCT_MODEL := moto g85 5G" >> omni_malmo.mk
+        echo "PRODUCT_MANUFACTURER := motorola" >> omni_malmo.mk
+        echo "PRODUCT_GMS_CLIENTID_BASE := android-motorola" >> omni_malmo.mk
+        echo "PRODUCT_BUILD_PROP_OVERRIDES += PRIVATE_BUILD_DESC=\"malmo_g-user 14 UUOS34HV-V1-ST11.1 1b15fc release-keys\"" >> omni_malmo.mk
+        echo "BUILD_FINGERPRINT := motorola/malmo_g/malmo:14/UUOS34HV-V1-ST11.1/1b15fc:user/release-keys" >> omni_malmo.mk
 
         # 4. INJECT KERNEL & HEADER FIX (Header v4)
-        echo "Injecting Kernel config..."
         echo '' >> BoardConfig.mk
         echo '# FORCED CONFIGS BY CI' >> BoardConfig.mk
         echo 'TARGET_PREBUILT_KERNEL := device/motorola/malmo/prebuilt/kernel' >> BoardConfig.mk
         echo 'BOARD_BOOT_HEADER_VERSION := 4' >> BoardConfig.mk
         
-        # 5. Verify Content (Debug)
+        # Debug: Show the file content to verify
         echo "=== CHECKING AndroidProducts.mk ==="
         cat AndroidProducts.mk
 
@@ -98,7 +93,7 @@ jobs:
         cd workspace
         . build/envsetup.sh
         
-        # 🟢 SWITCHED TO OMNI
+        # 🟢 Using omni_malmo
         lunch omni_malmo-eng
         mka recoveryimage -j$(nproc --all)
 
