@@ -12,7 +12,7 @@ TARGET_ARCH := arm64
 TARGET_ARCH_VARIANT := armv8-a
 TARGET_CPU_ABI := arm64-v8a
 TARGET_CPU_VARIANT := generic
-# CORRECTION: Holi platform uses Kryo 660, not 300
+# CORRECTION: Holi platform uses Kryo 660
 TARGET_CPU_VARIANT_RUNTIME := kryo660
 
 TARGET_2ND_ARCH := arm
@@ -43,20 +43,20 @@ AB_OTA_PARTITIONS += \
     vbmeta_system
 
 # ---------------------------------------------------------
-# KERNEL CONFIG
+# KERNEL CONFIG (FIXED FOR ANDROID 14)
 # ---------------------------------------------------------
 BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig androidboot.fastboot=1 androidboot.selinux=permissive
 
-# 🛑 HEADER v2 FORCES KERNEL + RAMDISK IN ONE FILE 🛑
-BOARD_BOOT_HEADER_VERSION := 2
+# 🟢 FIX 1: HEADER v4 FOR ANDROID 14
+BOARD_BOOT_HEADER_VERSION := 4
 BOARD_KERNEL_PAGESIZE := 4096
 BOARD_KERNEL_IMAGE_NAME := kernel
 
-# Prebuilt Paths
-TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
-TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
+# 🟢 FIX 2: HARDCODED PATHS TO FORCE KERNEL INCLUSION
+TARGET_PREBUILT_KERNEL := device/motorola/malmo/prebuilt/kernel
+TARGET_PREBUILT_DTB := device/motorola/malmo/prebuilt/dtb
 
-# Header 2 Arguments
+# Header Arguments
 BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
 BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
 BOARD_MKBOOTIMG_ARGS += --base $(BOARD_KERNEL_BASE)
@@ -77,6 +77,7 @@ BOARD_DTB_OFFSET           := 0x01f00000
 # ---------------------------------------------------------
 # PARTITIONS
 # ---------------------------------------------------------
+# 🟢 RESTORED TO STOCK SIZE (128MB)
 BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728
 BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
 BOARD_FLASH_BLOCK_SIZE := 262144
@@ -87,8 +88,7 @@ BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
 BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
 TARGET_COPY_OUT_VENDOR := vendor
 
-# ⚡ DEDICATED RECOVERY CONFIG ⚡
-# These 3 lines confirm we are building recovery.img, not boot.img
+# ⚡ DEDICATED RECOVERY CONFIG
 BOARD_USES_RECOVERY_AS_BOOT := false
 TARGET_NO_RECOVERY := false
 BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := false
@@ -109,8 +109,11 @@ BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA4096
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
 BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
 
+# 🟢 FIX 3: UPDATE PLATFORM VERSIONS TO 14
 VENDOR_SECURITY_PATCH := 2025-12-31
-PLATFORM_VERSION := 12.1.0
+PLATFORM_VERSION := 14
+PLATFORM_SECURITY_PATCH := 2024-08-05
+
 BOARD_USES_QCOM_FBE_DECRYPTION := true
 BOARD_USES_METADATA_PARTITION := true
 TW_INCLUDE_FBE_METADATA_DECRYPT := true
@@ -119,16 +122,11 @@ TW_INCLUDE_CRYPTO := true
 TW_INCLUDE_CRYPTO_FBE := true
 
 # ---------------------------------------------------------
-# TWRP UI - FIXED SECTION
+# TWRP UI
 # ---------------------------------------------------------
-# Screen dimensions for theme selection
 TARGET_SCREEN_WIDTH := 1080
 TARGET_SCREEN_HEIGHT := 2400
-
-# Theme selection
 TW_THEME := portrait_hdpi
-
-# Display settings
 TW_SCREEN_BLANK_ON_BOOT := true
 TW_NO_SCREEN_BLANK := true
 TW_NO_SCREEN_TIMEOUT := true
@@ -138,12 +136,8 @@ TW_INPUT_BLACKLIST := "hbtp_vm"
 TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
 TW_MAX_BRIGHTNESS := 2047
 TW_DEFAULT_BRIGHTNESS := 1200
-
-# UI offsets
 TW_Y_OFFSET := 80
 TW_H_OFFSET := -80
-
-# Tools
 TW_INCLUDE_REPACKTOOLS := true
 TW_INCLUDE_RESETPROP := true
 TW_INCLUDE_LIBRESETPROP := true
@@ -151,13 +145,7 @@ TW_EXCLUDE_DEFAULT_USB_INIT := true
 TW_USE_TOOLBOX := true
 TW_INCLUDE_FASTBOOTD := true
 TW_INCLUDE_PYTHON := true
-
-# Device specifics
-# !!! REMOVED TO FIX RECOVERY.IMG GENERATION !!!
-# TW_HAS_NO_RECOVERY_PARTITION := true
 TW_EXCLUDE_APEX := true
-
-# Debug
 TWRP_INCLUDE_LOGCAT := true
 TARGET_USES_LOGD := true
 BOARD_SUPPRESS_SECURE_ERASE := true
