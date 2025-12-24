@@ -133,6 +133,22 @@ jobs:
         PRODUCT_MANUFACTURER := motorola
         MK_EOF
 
+     - name: Fix Build Conflict (Rsync Error)
+      run: |
+        cd workspace
+        echo "=== Patching build/make/core/Makefile to prevent vendor symlink conflict ==="
+        
+        # Find the rsync command in the Makefile and add --exclude=vendor
+        # This prevents the build system from trying to overwrite the TWRP vendor folder with a symlink
+        sed -i 's/rsync -a --exclude=sdcard/rsync -a --exclude=sdcard --exclude=vendor/g' build/make/core/Makefile
+        
+        # Verify the patch
+        grep "rsync -a --exclude=sdcard" build/make/core/Makefile
+
+
+
+
+    
     - name: Build Recovery
       run: |
         cd workspace
