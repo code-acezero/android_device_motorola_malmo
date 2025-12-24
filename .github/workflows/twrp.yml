@@ -1,0 +1,101 @@
+name: Build TWRP for Moto G85 5G
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: TWRP Build CI
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Clean Disk Space
+      uses: rokibhasansagar/slimhub_actions@main
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig python3 python3-pip
+
+    - name: Install Repo Tool
+      run: |
+        mkdir ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        export PATH=~/bin:$PATH
+
+    - name: Initialize Repo
+      run: |
+        export PATH=~/bin:$PATH
+        mkdir workspace
+        cd workspace
+        # Initialize TWRP 14.1 (Android 14)
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
+        
+        # Save space
+        mkdir -p .repo/local_manifests
+        echo '<?xml version="1.0" encoding="UTF-8"?><manifest><remove-project name="platform/prebuilts/rust" /></manifest>' > .repo/local_manifests/remove_rust.xml
+        
+        repo sync -c -j$(nproc --all)
+
+    - name: Clone Device Tree
+      run: |
+        cd workspace
+        # Clone to temp folder first to avoid errors
+        git clone https://github.com/code-acezero/android_device_motorola_malmo temp_tree
+        
+        # Move to correct location
+        mkdir -p device/motorola/malmo
+        cp -r temp_tree/* device/motorola/malmo/
+        rm -rf temp_tree
+
+    - name: 🟢 SETUP DEVICE CONFIGS (Simple & Clean)
+      run: |
+        cd workspace/device/motorola/malmo
+        
+        # 1. DELETE everything to start fresh
+        rm -f vendorsetup.sh AndroidProducts.mk twrp_malmo.mk omni_malmo.mk
+        
+        # 2. CREATE AndroidProducts.mk (Hardcoded Path = No Errors)
+        echo 'PRODUCT_MAKEFILES := device/motorola/malmo/omni_malmo.mk' > AndroidProducts.mk
+        echo 'COMMON_LUNCH_CHOICES := omni_malmo-eng' >> AndroidProducts.mk
+
+        # 3. CREATE omni_malmo.mk (Using standard AOSP base)
+        echo '$(call inherit-product, device/motorola/malmo/device.mk)' > omni_malmo.mk
+        echo '$(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)' >> omni_malmo.mk
+        echo '$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)' >> omni_malmo.mk
+        echo '$(call inherit-product, vendor/twrp/config/common.mk)' >> omni_malmo.mk
+        
+        echo 'PRODUCT_NAME := omni_malmo' >> omni_malmo.mk
+        echo 'PRODUCT_DEVICE := malmo' >> omni_malmo.mk
+        echo 'PRODUCT_BRAND := motorola' >> omni_malmo.mk
+        echo 'PRODUCT_MODEL := moto g85 5G' >> omni_malmo.mk
+        echo 'PRODUCT_MANUFACTURER := motorola' >> omni_malmo.mk
+        echo 'PRODUCT_GMS_CLIENTID_BASE := android-motorola' >> omni_malmo.mk
+        echo 'PRODUCT_BUILD_PROP_OVERRIDES += PRIVATE_BUILD_DESC="malmo_g-user 14 UUOS34HV-V1-ST11.1 1b15fc release-keys"' >> omni_malmo.mk
+        echo 'BUILD_FINGERPRINT := motorola/malmo_g/malmo:14/UUOS34HV-V1-ST11.1/1b15fc:user/release-keys' >> omni_malmo.mk
+
+        # 4. INJECT KERNEL & HEADER FIX (Required for booting)
+        echo '' >> BoardConfig.mk
+        echo '# FORCED CONFIGS' >> BoardConfig.mk
+        echo 'TARGET_PREBUILT_KERNEL := device/motorola/malmo/prebuilt/kernel' >> BoardConfig.mk
+        echo 'BOARD_BOOT_HEADER_VERSION := 4' >> BoardConfig.mk
+        
+        # Verify
+        cat AndroidProducts.mk
+
+    - name: Build Recovery
+      run: |
+        export PATH=~/bin:$PATH
+        cd workspace
+        . build/envsetup.sh
+        
+        # Build using the exact name we just defined
+        lunch omni_malmo-eng
+        mka recoveryimage -j$(nproc --all)
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: TWRP-Recovery-G85-5G
+        path: workspace/out/target/product/malmo/recovery.img
