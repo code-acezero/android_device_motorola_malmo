@@ -1,4 +1,4 @@
-name: Build TWRP Recovery
+name: Build TWRP for Moto G85 5G
 
 on:
   workflow_dispatch:
@@ -15,160 +15,74 @@ jobs:
     - name: Install Dependencies
       run: |
         sudo apt-get update
-        sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev \
-          gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev \
-          libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig \
-          python3 python3-pip python-is-python3 bc libssl-dev rsync
+        sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig python3 python3-pip
 
-    - name: Setup Repo Tool
+    - name: Install Repo Tool
       run: |
-        mkdir -p ~/bin
+        mkdir ~/bin
         curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
         chmod a+x ~/bin/repo
-        echo "$HOME/bin" >> $GITHUB_PATH
-        git config --global user.email "bot@github.com"
-        git config --global user.name "GitHub Actions Bot"
+        export PATH=~/bin:$PATH
 
-    - name: Initialize TWRP Source
+    - name: Initialize Repo
       run: |
-        mkdir -p workspace
+        export PATH=~/bin:$PATH
+        mkdir workspace
         cd workspace
-        # Initialize TWRP 12.1 (Android 12)
-        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
-        
-        # Robust Sync (Retry if network fails)
-        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags || \
-        repo sync -c -j1 --force-sync --no-clone-bundle --no-tags
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-14.1
+        mkdir -p .repo/local_manifests
+        echo '<?xml version="1.0" encoding="UTF-8"?><manifest><remove-project name="platform/prebuilts/rust" /></manifest>' > .repo/local_manifests/remove_rust.xml
+        repo sync -c -j$(nproc --all)
 
-    - name: Clone Device Tree
+    - name: Clone Device Tree (Temp Tree Method)
       run: |
         cd workspace
-        mkdir -p device/motorola
-        # Clone your specific branch
-        git clone -b malmo-a14-twrp https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
+        git clone https://github.com/code-acezero/android_device_motorola_malmo temp_tree
+        mkdir -p device/motorola/malmo
+        cp -r temp_tree/* device/motorola/malmo/
+        rm -rf temp_tree
 
-    - name: Apply Critical Fixes (Theme, Partitions & 64-Bit)
+    - name: 🟢 FORCE FIX CONFIGS (Now with Kernel Fix)
       run: |
         cd workspace/device/motorola/malmo
         
-        echo "=== 1. Generatng BoardConfig.mk (Device Config) ==="
-        cat > BoardConfig.mk << 'EOF'
-        DEVICE_PATH := device/motorola/malmo
-        ALLOW_MISSING_DEPENDENCIES := true
+        # 1. Clean up
+        rm -f vendorsetup.sh AndroidProducts.mk twrp_malmo.mk
         
-        # Architecture
-        TARGET_ARCH := arm64
-        TARGET_ARCH_VARIANT := armv8-a
-        TARGET_CPU_ABI := arm64-v8a
-        TARGET_CPU_VARIANT := generic
+        # 2. Fix AndroidProducts.mk
+        echo 'PRODUCT_MAKEFILES := device/motorola/malmo/twrp_malmo.mk' > AndroidProducts.mk
+        echo 'COMMON_LUNCH_CHOICES := twrp_malmo-eng' >> AndroidProducts.mk
         
-        TARGET_2ND_ARCH := arm
-        TARGET_2ND_ARCH_VARIANT := armv8-a
-        TARGET_2ND_CPU_ABI := armeabi-v7a
-        TARGET_2ND_CPU_ABI2 := armeabi
-        TARGET_2ND_CPU_VARIANT := generic
-        
-        # Platform
-        BOARD_USES_QCOM_HARDWARE := true
-        TARGET_BOARD_PLATFORM := holi
-        TARGET_BOOTLOADER_BOARD_NAME := malmo
-        TARGET_NO_BOOTLOADER := true
-        TARGET_USES_UEFI := true
-        
-        # Partitions
-        AB_OTA_UPDATER := true
-        AB_OTA_PARTITIONS += boot dtbo recovery system system_ext product vendor vbmeta
-        BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728
-        BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
-        BOARD_FLASH_BLOCK_SIZE := 262144
-        BOARD_USES_RECOVERY_AS_BOOT := false
-        TARGET_NO_RECOVERY := false
-        
-        # Header V2
-        BOARD_BOOT_HEADER_VERSION := 2
-        BOARD_KERNEL_PAGESIZE := 4096
-        BOARD_KERNEL_IMAGE_NAME := kernel
-        TARGET_PREBUILT_KERNEL := $(DEVICE_PATH)/prebuilt/kernel
-        TARGET_PREBUILT_DTB := $(DEVICE_PATH)/prebuilt/dtb
-        BOARD_MKBOOTIMG_ARGS += --header_version $(BOARD_BOOT_HEADER_VERSION)
-        BOARD_MKBOOTIMG_ARGS += --pagesize $(BOARD_KERNEL_PAGESIZE)
-        BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
-        
-        # Crypto & Platform
-        PLATFORM_VERSION := 12.1.0
-        VENDOR_SECURITY_PATCH := 2025-12-31
-        BOARD_USES_QCOM_FBE_DECRYPTION := true
-        TW_INCLUDE_CRYPTO := true
-        
-        # TWRP UI
-        TARGET_SCREEN_WIDTH := 1080
-        TARGET_SCREEN_HEIGHT := 2400
-        TW_THEME := portrait_hdpi
-        TW_SCREEN_BLANK_ON_BOOT := true
-        TW_FRAMERATE := 60
-        TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
-        TW_MAX_BRIGHTNESS := 2047
-        TW_DEFAULT_BRIGHTNESS := 1200
-        TW_INCLUDE_RESETPROP := true
-        TW_INCLUDE_FASTBOOTD := true
-        TW_EXCLUDE_APEX := true
-        EOF
-        
-        echo "=== 2. Generating AndroidProducts.mk ==="
-        echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/twrp_malmo.mk" > AndroidProducts.mk
-        echo "COMMON_LUNCH_CHOICES := twrp_malmo-eng" >> AndroidProducts.mk
-        
-        echo "=== 3. Generating twrp_malmo.mk (Product Config) ==="
-        # FIX IS HERE: Added core_64_bit.mk to tell build system this is a 64-bit OS
-        cat > twrp_malmo.mk << 'MK_EOF'
-        $(call inherit-product, device/motorola/malmo/device.mk)
-        $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
-        $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
-        $(call inherit-product, vendor/twrp/config/common.mk)
-        
-        PRODUCT_DEVICE := malmo
-        PRODUCT_NAME := twrp_malmo
-        PRODUCT_BRAND := motorola
-        PRODUCT_MODEL := Moto G85 5G
-        PRODUCT_MANUFACTURER := motorola
-        MK_EOF
+        # 3. Fix twrp_malmo.mk
+        echo '# Generated by CI' > twrp_malmo.mk
+        echo '$(call inherit-product, device/motorola/malmo/device.mk)' >> twrp_malmo.mk
+        echo '$(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)' >> twrp_malmo.mk
+        echo '$(call inherit-product, vendor/twrp/config/common.mk)' >> twrp_malmo.mk
+        echo 'PRODUCT_NAME := twrp_malmo' >> twrp_malmo.mk
+        echo 'PRODUCT_DEVICE := malmo' >> twrp_malmo.mk
+        echo 'PRODUCT_BRAND := motorola' >> twrp_malmo.mk
+        echo 'PRODUCT_MODEL := moto g85 5G' >> twrp_malmo.mk
+        echo 'PRODUCT_MANUFACTURER := motorola' >> twrp_malmo.mk
+        echo 'PRODUCT_GMS_CLIENTID_BASE := android-motorola' >> twrp_malmo.mk
+        echo 'PRODUCT_BUILD_PROP_OVERRIDES += PRIVATE_BUILD_DESC="malmo_g-user 14 UUOS34HV-V1-ST11.1 1b15fc release-keys"' >> twrp_malmo.mk
+        echo 'BUILD_FINGERPRINT := motorola/malmo_g/malmo:14/UUOS34HV-V1-ST11.1/1b15fc:user/release-keys' >> twrp_malmo.mk
 
-    - name: Fix Build Conflict (Rsync Error)
-      run: |
-        cd workspace
-        echo "=== Patching build/make/core/Makefile to prevent vendor symlink conflict ==="
+        # 🟢 4. CRITICAL FIX: Inject Kernel path into BoardConfig.mk
+        # We append this to the end of BoardConfig.mk to ensure it is set.
+        echo '' >> BoardConfig.mk
+        echo '# FORCED KERNEL PATH BY CI' >> BoardConfig.mk
+        echo 'TARGET_PREBUILT_KERNEL := device/motorola/malmo/prebuilt/kernel' >> BoardConfig.mk
         
-        # Find the rsync command in the Makefile and add --exclude=vendor
-        # This prevents the build system from trying to overwrite the TWRP vendor folder with a symlink
-        sed -i 's/rsync -a --exclude=sdcard/rsync -a --exclude=sdcard --exclude=vendor/g' build/make/core/Makefile
-        
-        # Verify the patch
-        grep "rsync -a --exclude=sdcard" build/make/core/Makefile
-
-
-
-
-    
     - name: Build Recovery
       run: |
+        export PATH=~/bin:$PATH
         cd workspace
-        export ALLOW_MISSING_DEPENDENCIES=true
-        export LC_ALL=C
-        
-        # Source Build Environment
         . build/envsetup.sh
-        
-        # Select the device
         lunch twrp_malmo-eng
-        
-        # Build
         mka recoveryimage -j$(nproc --all)
 
-    - name: Upload Recovery
+    - name: Upload Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: TWRP-Recovery-MotoG85
-        path: |
-          workspace/out/target/product/malmo/recovery.img
-          workspace/out/target/product/malmo/*.img
-        if-no-files-found: warn
+        name: TWRP-Recovery-G85-5G
+        path: workspace/out/target/product/malmo/recovery.img
