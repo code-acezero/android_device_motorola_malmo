@@ -1,0 +1,191 @@
+name: Build TWRP Recovery (v2 + OS 14 Force)
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    name: TWRP Build CI
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Clean Disk Space
+      uses: rokibhasansagar/slimhub_actions@main
+
+    - name: Install Dependencies
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git-core gnupg flex bison build-essential zip curl zlib1g-dev \
+          gcc-multilib g++-multilib libc6-dev-i386 libncurses5 lib32ncurses5-dev x11proto-core-dev \
+          libx11-dev lib32z1-dev libgl1-mesa-dev libxml2-utils xsltproc unzip fontconfig \
+          python3 python3-pip python-is-python3 bc libssl-dev rsync
+
+    - name: Setup Repo Tool
+      run: |
+        mkdir -p ~/bin
+        curl https://storage.googleapis.com/git-repo-downloads/repo > ~/bin/repo
+        chmod a+x ~/bin/repo
+        echo "$HOME/bin" >> $GITHUB_PATH
+        git config --global user.email "bot@github.com"
+        git config --global user.name "GitHub Actions Bot"
+
+    - name: Initialize TWRP Source
+      run: |
+        mkdir -p workspace
+        cd workspace
+        # TWRP 12.1 (Stable Base)
+        repo init --depth=1 -u https://github.com/minimal-manifest-twrp/platform_manifest_twrp_aosp.git -b twrp-12.1
+        repo sync -c -j$(nproc --all) --force-sync --no-clone-bundle --no-tags || \
+        repo sync -c -j1 --force-sync --no-clone-bundle --no-tags
+
+    - name: Clone Device Tree
+      run: |
+        cd workspace
+        mkdir -p device/motorola
+        git clone -b malmo-a14-twrp https://github.com/code-acezero/android_device_motorola_malmo device/motorola/malmo
+
+    - name: Apply Critical Fixes (Header v2 + DTB + OS 14)
+      run: |
+        cd workspace/device/motorola/malmo
+        
+        echo "=== Generating BoardConfig.mk ==="
+        cat > BoardConfig.mk << 'EOF'
+        DEVICE_PATH := device/motorola/malmo
+        ALLOW_MISSING_DEPENDENCIES := true
+        TARGET_ARCH := arm64
+        TARGET_ARCH_VARIANT := armv8-a
+        TARGET_CPU_ABI := arm64-v8a
+        TARGET_CPU_VARIANT := generic
+        TARGET_CPU_VARIANT_RUNTIME := kryo660
+        TARGET_2ND_ARCH := arm
+        TARGET_2ND_ARCH_VARIANT := armv8-a
+        TARGET_2ND_CPU_ABI := armeabi-v7a
+        TARGET_2ND_CPU_ABI2 := armeabi
+        TARGET_2ND_CPU_VARIANT := generic
+        TARGET_2ND_CPU_VARIANT_RUNTIME := cortex-a75
+        BOARD_USES_QCOM_HARDWARE := true
+        TARGET_BOARD_PLATFORM := holi
+        TARGET_BOOTLOADER_BOARD_NAME := malmo
+        TARGET_NO_BOOTLOADER := true
+        TARGET_USES_UEFI := true
+        AB_OTA_UPDATER := true
+        AB_OTA_PARTITIONS += boot dtbo recovery system system_ext product vendor vbmeta vbmeta_system
+
+        BOARD_KERNEL_CMDLINE := console=video=vfb:640x400,bpp=32,memsize=3072000 msm_rtb.filter=0x237 iptable_raw.raw_before_defrag=1 ip6table_raw.raw_before_defrag=1 firmware_class.path=/vendor/firmware_mnt/image pstore.compress=none loglevel=4 log_buf_len=256K mem.enable_mglru=1 nosoftlockup bootconfig androidboot.fastboot=1 androidboot.selinux=permissive
+        
+        # Kernel & DTB
+        TARGET_PREBUILT_KERNEL := device/motorola/malmo/prebuilt/kernel
+        TARGET_PREBUILT_DTB := device/motorola/malmo/prebuilt/dtb
+        BOARD_KERNEL_PAGESIZE := 4096
+        BOARD_KERNEL_IMAGE_NAME := kernel
+
+        # 🟢 HEADER v2 (Required to keep DTB inside)
+        BOARD_BOOT_HEADER_VERSION := 2
+        
+        # 🟢 FORCE OS 14 (Tricks the bootloader)
+        BOARD_MKBOOTIMG_ARGS += --header_version 2
+        BOARD_MKBOOTIMG_ARGS += --os_version 14.0.0
+        BOARD_MKBOOTIMG_ARGS += --os_patch_level 2024-08-05
+        
+        # DTB Inclusion (Works on v2)
+        BOARD_MKBOOTIMG_ARGS += --dtb $(TARGET_PREBUILT_DTB)
+        BOARD_MKBOOTIMG_ARGS += --dtb_offset 0x01f00000
+        
+        # Offsets
+        BOARD_MKBOOTIMG_ARGS += --pagesize 4096
+        BOARD_MKBOOTIMG_ARGS += --base 0x00000000
+        BOARD_MKBOOTIMG_ARGS += --kernel_offset 0x00008000
+        BOARD_MKBOOTIMG_ARGS += --ramdisk_offset 0x01000000
+        BOARD_MKBOOTIMG_ARGS += --second_offset 0x00000000
+        BOARD_MKBOOTIMG_ARGS += --tags_offset 0x00000100
+
+        # Partitions
+        BOARD_RECOVERYIMAGE_PARTITION_SIZE := 134217728
+        BOARD_BOOTIMAGE_PARTITION_SIZE := 100663296
+        BOARD_FLASH_BLOCK_SIZE := 262144
+        BOARD_HAS_LARGE_FILESYSTEM := true
+        BOARD_SYSTEMIMAGE_PARTITION_TYPE := ext4
+        BOARD_USERDATAIMAGE_FILE_SYSTEM_TYPE := f2fs
+        BOARD_VENDORIMAGE_FILE_SYSTEM_TYPE := ext4
+        TARGET_COPY_OUT_VENDOR := vendor
+        BOARD_USES_RECOVERY_AS_BOOT := false
+        TARGET_NO_RECOVERY := false
+        BOARD_MOVE_RECOVERY_RESOURCES_TO_VENDOR_BOOT := false
+        BOARD_RAMDISK_USE_LZ4 := true
+        BOARD_RAMDISK_LZ4_ARGUMENTS := -l -9
+        BOARD_AVB_ENABLE := true
+        BOARD_AVB_MAKE_VBMETA_IMAGE_ARGS += --flags 3
+        BOARD_AVB_RECOVERY_ALGORITHM := SHA256_RSA4096
+        BOARD_AVB_RECOVERY_KEY_PATH := external/avb/test/data/testkey_rsa4096.pem
+        BOARD_AVB_RECOVERY_ROLLBACK_INDEX := 1
+        BOARD_AVB_RECOVERY_ROLLBACK_INDEX_LOCATION := 1
+        VENDOR_SECURITY_PATCH := 2025-12-31
+        PLATFORM_VERSION := 14
+        PLATFORM_SECURITY_PATCH := 2024-08-05
+        BOARD_USES_QCOM_FBE_DECRYPTION := true
+        TW_INCLUDE_CRYPTO := true
+        TW_INCLUDE_CRYPTO_FBE := true
+        TARGET_SCREEN_WIDTH := 1080
+        TARGET_SCREEN_HEIGHT := 2400
+        TW_THEME := portrait_hdpi
+        TW_SCREEN_BLANK_ON_BOOT := true
+        TW_NO_SCREEN_BLANK := true
+        TW_NO_SCREEN_TIMEOUT := true
+        TW_FRAMERATE := 60
+        TW_BRIGHTNESS_PATH := "/sys/class/backlight/panel0-backlight/brightness"
+        TW_MAX_BRIGHTNESS := 2047
+        TW_DEFAULT_BRIGHTNESS := 1200
+        TW_Y_OFFSET := 80
+        TW_H_OFFSET := -80
+        TW_INCLUDE_REPACKTOOLS := true
+        TW_INCLUDE_RESETPROP := true
+        TW_INCLUDE_LIBRESETPROP := true
+        TW_EXCLUDE_DEFAULT_USB_INIT := true
+        TW_USE_TOOLBOX := true
+        TW_INCLUDE_FASTBOOTD := true
+        TW_INCLUDE_PYTHON := true
+        TW_EXCLUDE_APEX := true
+        TWRP_INCLUDE_LOGCAT := true
+        TARGET_USES_LOGD := true
+        BOARD_SUPPRESS_SECURE_ERASE := true
+        EOF
+        
+        echo "=== 2. Generating AndroidProducts.mk ==="
+        echo "PRODUCT_MAKEFILES := \$(LOCAL_DIR)/twrp_malmo.mk" > AndroidProducts.mk
+        echo "COMMON_LUNCH_CHOICES := twrp_malmo-eng" >> AndroidProducts.mk
+        
+        echo "=== 3. Generating twrp_malmo.mk ==="
+        cat > twrp_malmo.mk << 'MK_EOF'
+        $(call inherit-product, device/motorola/malmo/device.mk)
+        $(call inherit-product, $(SRC_TARGET_DIR)/product/core_64_bit.mk)
+        $(call inherit-product, $(SRC_TARGET_DIR)/product/aosp_base.mk)
+        $(call inherit-product, vendor/twrp/config/common.mk)
+        PRODUCT_DEVICE := malmo
+        PRODUCT_NAME := twrp_malmo
+        PRODUCT_BRAND := motorola
+        PRODUCT_MODEL := Moto G85 5G
+        PRODUCT_MANUFACTURER := motorola
+        MK_EOF
+
+    - name: Fix Build Conflict (Rsync Error)
+      run: |
+        cd workspace
+        sed -i 's/rsync -a --exclude=sdcard/rsync -a --exclude=sdcard --exclude=vendor/g' build/make/core/Makefile
+
+    - name: Build Recovery
+      run: |
+        cd workspace
+        export ALLOW_MISSING_DEPENDENCIES=true
+        export LC_ALL=C
+        . build/envsetup.sh
+        lunch twrp_malmo-eng
+        mka recoveryimage -j$(nproc --all)
+
+    - name: Upload Recovery
+      uses: actions/upload-artifact@v4
+      with:
+        name: TWRP-Recovery-MotoG85
+        path: |
+          workspace/out/target/product/malmo/recovery.img
+          workspace/out/target/product/malmo/*.img
+        if-no-files-found: warn
